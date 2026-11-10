@@ -13,7 +13,6 @@ final class DragMonitor {
     private let target = DropTargetController()
     private var cachedGeneration: Int?
     private var cachedURLs: [URL] = []
-    private var anchor: NSPoint?
 
     func start() {
         guard timer == nil else { return }
@@ -38,10 +37,9 @@ final class DragMonitor {
                 }
             }
         }
-        target.onDrop = { [weak self] urls in
+        target.onDrop = { [weak self] requests in
             self?.trigger.cancel()
-            self?.anchor = nil
-            self?.target.showReceipt(count: urls.count)
+            self?.target.showReceipt(requests: requests)
         }
         target.onCancel = { [weak self] in self?.cancel() }
     }
@@ -58,7 +56,6 @@ final class DragMonitor {
 
     private func cancel() {
         trigger.cancel()
-        anchor = nil
         target.hide()
     }
 
@@ -77,8 +74,7 @@ final class DragMonitor {
         )
         if visible {
             if !wasVisible {
-                anchor = NSEvent.mouseLocation
-                target.show(near: anchor!, count: cachedURLs.count)
+                target.show(near: NSEvent.mouseLocation, urls: cachedURLs)
             }
         } else if wasVisible {
             // Let AppKit finish performDragOperation before ordering out the panel.
@@ -87,7 +83,6 @@ final class DragMonitor {
             } else {
                 target.hideUnlessReceipt()
             }
-            anchor = nil
         }
     }
 

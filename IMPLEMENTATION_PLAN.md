@@ -1,6 +1,6 @@
 # OpenLorikeet — Phased Implementation Plan
 
-Status: Phase 01 foundation and Phase 02 prototype implemented; graphical acceptance remains pending. Complete each phase’s checks before marking it done.
+Status: Phase 01 foundation and Phase 02–03 interaction prototypes implemented; graphical acceptance remains pending. Complete each phase’s checks before marking it done.
 
 ## Product agreement
 - Local macOS background utility; no dashboard or main application window.
@@ -45,10 +45,12 @@ Verification: build, bundle metadata, ad-hoc signature, and core checks pass. Gr
 Build and automated state checks pass. Graphical acceptance is still pending; see [gesture test instructions](docs/GESTURE_TESTING.md).
 
 ### Phase 03 — Radial picker
-- [ ] Build the wheel around the pointer, with input-specific choices and a central hover label.
-- [ ] Accept a drop on a segment; cancel cleanly outside it or with Escape.
-- [ ] Keep the wheel within screen edges and support multiple displays.
+- [x] Build the prototype wheel around the pointer, with input-specific planned choices and a central hover label.
+- [x] Implement segment drop capture and center/gap/outside rejection; existing release/Escape cancellation remains subject to graphical checks.
+- [x] Implement display-aware frame clamping; automated checks cover negative screen origins and small displays.
 **Done when:** the chosen file and output format reach the conversion core exactly once.
+
+Automated checks verify exact-once request capture and geometry; live drag delivery and appearance remain pending. This is a preview-only prototype authorized after Phase 2, not a claim that its graphical feasibility gate passed. Replace planned choices with engine-backed availability in Phase 04.
 
 ### Phase 04 — Conversion registry and workers
 - [ ] Define one request/result interface and one registry for supported routes and engine readiness.

@@ -1,39 +1,30 @@
 import AppKit
+import ConversionCore
 
 @MainActor
 final class DropTargetController {
-    var onDrop: (([URL]) -> Void)?
+    var onDrop: (([ConversionRequest]) -> Void)?
     var onCancel: (() -> Void)?
     private var panel: NSPanel?
-    private var view: FileDropView?
+    private var view: RadialDropView?
     private var receiptTask: Task<Void, Never>?
     private var showingReceipt = false
 
-    func show(near point: NSPoint, count: Int) {
+    func show(near point: NSPoint, urls: [URL]) {
         receiptTask?.cancel()
         showingReceipt = false
         if panel == nil { makePanel() }
         guard let panel, let view else { return }
         let screen = NSScreen.screens.first { $0.frame.contains(point) } ?? NSScreen.main
-        let visible = screen?.visibleFrame ?? NSRect(x: point.x - 200, y: point.y - 100, width: 400, height: 200)
-        let size = panel.frame.size
-        // Offset to let the user move onto the target; do not swallow the active pointer.
-        let x = min(max(point.x + 24, visible.minX + 8), visible.maxX - size.width - 8)
-        let y = min(max(point.y - size.height / 2, visible.minY + 8), visible.maxY - size.height - 8)
-        panel.setFrameOrigin(NSPoint(x: x, y: y))
-        view.message = "Drop \(count == 1 ? "file" : "\(count) files") here"
-        view.detail = "Gesture prototype · conversion comes later"
-        view.acceptsFiles = true
-        view.highlighted = false
+        let visible = screen?.visibleFrame ?? NSRect(x: point.x - 200, y: point.y - 200, width: 400, height: 400)
+        panel.setFrame(RadialGeometry.frame(near: point, in: visible), display: false)
+        view.configure(urls: urls)
         panel.orderFrontRegardless()
     }
 
-    func showReceipt(count: Int) {
+    func showReceipt(requests: [ConversionRequest]) {
         showingReceipt = true
-        view?.acceptsFiles = false
-        view?.highlighted = false
-        view?.message = "Received \(count == 1 ? "1 file" : "\(count) files")"
-        view?.detail = "Gesture confirmed · no files changed"
+        view?.receipt = "\(requests.count) → \(requests.first?.targetFormat.fileExtension.uppercased() ?? "")"
         receiptTask?.cancel()
         receiptTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(2))
@@ -42,9 +33,7 @@ final class DropTargetController {
         }
     }
 
-    func hideUnlessReceipt() {
-        if !showingReceipt { hide() }
-    }
+    func hideUnlessReceipt() { if !showingReceipt { hide() } }
 
     func hide() {
         receiptTask?.cancel()
@@ -54,10 +43,8 @@ final class DropTargetController {
     }
 
     private func makePanel() {
-        let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 310, height: 100),
-            styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false
-        )
+        let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 340, height: 340),
+                            styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.level = .floating
         panel.isOpaque = false
         panel.backgroundColor = .clear
@@ -65,8 +52,9 @@ final class DropTargetController {
         panel.hidesOnDeactivate = false
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.isReleasedWhenClosed = false
-        let view = FileDropView(frame: NSRect(x: 0, y: 0, width: 310, height: 100))
-        view.onDrop = { [weak self] urls in self?.onDrop?(urls) }
+        let view = RadialDropView(frame: NSRect(x: 0, y: 0, width: 340, height: 340))
+        view.autoresizingMask = [.width, .height]
+        view.onDrop = { [weak self] requests in self?.onDrop?(requests) }
         view.onCancel = { [weak self] in self?.onCancel?() }
         panel.contentView = view
         self.panel = panel
@@ -75,61 +63,101 @@ final class DropTargetController {
 }
 
 @MainActor
-private final class FileDropView: NSView {
-    var onDrop: (([URL]) -> Void)?
+private final class RadialDropView: NSView {
+    var onDrop: (([ConversionRequest]) -> Void)?
     var onCancel: (() -> Void)?
-    var acceptsFiles = true
-    var message = "Drop file here" { didSet { needsDisplay = true } }
-    var detail = "" { didSet { needsDisplay = true } }
-    var highlighted = false { didSet { needsDisplay = true } }
+    var receipt: String? { didSet { needsDisplay = true } }
+    private var session = PickerSession(sources: [])
+    private var selected: Int? { didSet { needsDisplay = true; updateAccessibility() } }
+    private var geometry: RadialGeometry {
+        RadialGeometry(center: CGPoint(x: bounds.midX, y: bounds.midY), innerRadius: bounds.width * 0.23,
+                       outerRadius: bounds.width / 2 - 8, count: session.targets.count)
+    }
 
     override init(frame: NSRect) {
         super.init(frame: frame)
         registerForDraggedTypes([.fileURL])
         setAccessibilityElement(true)
         setAccessibilityRole(.group)
-        setAccessibilityLabel("OpenLorikeet temporary file drop target")
+        updateAccessibility()
     }
-
     required init?(coder: NSCoder) { nil }
 
+    func configure(urls: [URL]) {
+        session = PickerSession(sources: urls)
+        receipt = nil
+        selected = nil
+        needsDisplay = true
+    }
+
+    private func updateAccessibility() {
+        let label = selected.map { session.targets[$0].fileExtension.uppercased() } ?? "Choose a planned format"
+        setAccessibilityLabel("OpenLorikeet preview only. \(label). No conversion engines connected.")
+    }
+
     override func draw(_ dirtyRect: NSRect) {
-        let shape = NSBezierPath(roundedRect: bounds.insetBy(dx: 2, dy: 2), xRadius: 18, yRadius: 18)
-        NSColor(calibratedWhite: highlighted ? 0.18 : 0.10, alpha: 0.97).setFill()
-        shape.fill()
-        (highlighted ? NSColor.systemGreen : NSColor.darkGray).setStroke()
-        shape.lineWidth = 2
-        shape.stroke()
-        (message as NSString).draw(at: NSPoint(x: 18, y: 53), withAttributes: [
-            .font: NSFont.boldSystemFont(ofSize: 17), .foregroundColor: NSColor.white,
-        ])
-        (detail as NSString).draw(at: NSPoint(x: 18, y: 25), withAttributes: [
-            .font: NSFont.systemFont(ofSize: 11), .foregroundColor: NSColor.lightGray,
-        ])
+        let g = geometry
+        let n = session.targets.count
+        if n > 0 {
+            let step = 360.0 / Double(n)
+            let gap = g.gapRadians * 180 / .pi
+            for index in 0..<n {
+                let angle = 90 - Double(index) * step
+                let start = angle + step / 2 - gap / 2
+                let end = angle - step / 2 + gap / 2
+                let path = NSBezierPath()
+                path.appendArc(withCenter: g.center, radius: g.outerRadius, startAngle: start, endAngle: end, clockwise: true)
+                path.appendArc(withCenter: g.center, radius: g.innerRadius, startAngle: end, endAngle: start, clockwise: false)
+                path.close()
+                (selected == index ? NSColor.systemGreen.withAlphaComponent(0.9)
+                                  : NSColor(calibratedWhite: 0.14, alpha: 0.96)).setFill()
+                path.fill()
+                let theta = angle * .pi / 180
+                let radius = (g.innerRadius + g.outerRadius) / 2
+                drawCentered(session.targets[index].fileExtension.uppercased(),
+                             at: CGPoint(x: g.center.x + cos(theta) * radius, y: g.center.y + sin(theta) * radius),
+                             size: 13, color: .white)
+            }
+        }
+        let disk = NSRect(x: g.center.x - g.innerRadius + 5, y: g.center.y - g.innerRadius + 5,
+                          width: g.innerRadius * 2 - 10, height: g.innerRadius * 2 - 10)
+        NSColor(calibratedWhite: 0.08, alpha: 0.98).setFill()
+        NSBezierPath(ovalIn: disk).fill()
+        let title = receipt ?? selected.map { session.targets[$0].fileExtension.uppercased() }
+            ?? (n == 0 ? "No formats" : "Choose format")
+        drawCentered(title, at: CGPoint(x: g.center.x, y: g.center.y + 12), size: 13, color: .white)
+        drawCentered(receipt == nil ? "PREVIEW ONLY" : "Choice captured", at: CGPoint(x: g.center.x, y: g.center.y - 8), size: 10, color: .systemYellow)
+        drawCentered("No files changed", at: CGPoint(x: g.center.x, y: g.center.y - 25), size: 9, color: .lightGray)
     }
 
-    private func canAccept(_ sender: NSDraggingInfo) -> Bool {
-        acceptsFiles && NSEvent.modifierFlags.contains(.shift)
-            && sender.draggingSourceOperationMask.contains(.copy)
-            && !DragMonitor.fileURLs(from: sender.draggingPasteboard).isEmpty
+    private func drawCentered(_ text: String, at point: CGPoint, size: Double, color: NSColor) {
+        let attributes: [NSAttributedString.Key: Any] = [.font: NSFont.boldSystemFont(ofSize: size), .foregroundColor: color]
+        let string = text as NSString
+        let size = string.size(withAttributes: attributes)
+        string.draw(at: CGPoint(x: point.x - size.width / 2, y: point.y - size.height / 2), withAttributes: attributes)
     }
 
-    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
-        highlighted = canAccept(sender)
-        return highlighted ? .copy : []
+    private func updateSelection(_ sender: NSDraggingInfo) -> NSDragOperation {
+        guard receipt == nil, !session.consumed, NSEvent.modifierFlags.contains(.shift),
+              sender.draggingSourceOperationMask.contains(.copy) else {
+            selected = nil
+            return []
+        }
+        selected = geometry.segment(at: convert(sender.draggingLocation, from: nil))
+        return selected == nil ? [] : .copy
     }
-    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
-        draggingEntered(sender)
-    }
-    override func draggingExited(_ sender: NSDraggingInfo?) { highlighted = false }
-    override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool { canAccept(sender) }
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation { updateSelection(sender) }
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation { updateSelection(sender) }
+    override func draggingExited(_ sender: NSDraggingInfo?) { selected = nil }
+    override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool { updateSelection(sender) == .copy }
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
-        guard canAccept(sender) else { return false }
-        let urls = DragMonitor.fileURLs(from: sender.draggingPasteboard)
-        guard !urls.isEmpty else { return false }
-        acceptsFiles = false
-        onDrop?(urls)
-        return true
+        guard updateSelection(sender) == .copy, let selected else { return false }
+        do {
+            guard let requests = try session.select(session.targets[selected], droppedURLs: DragMonitor.fileURLs(from: sender.draggingPasteboard)) else { return false }
+            onDrop?(requests)
+            return true
+        } catch { return false }
     }
     override func keyDown(with event: NSEvent) {
         if event.keyCode == 53 { onCancel?() } else { super.keyDown(with: event) }

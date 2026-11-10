@@ -33,4 +33,12 @@ Verified: release build, bundle/signature checks, and automated gesture-state ch
 
 Pending: actual Desktop/Finder gesture delivery, OS privacy behavior, Escape handling, and drop callback ordering. See [gesture testing](docs/GESTURE_TESTING.md). The existing graphical-launch environment restriction remains. Phase 2 is not marked fully accepted.
 
-Conversion engines, the radial wheel, and mascot animations are not active yet.
+## Phase 3 radial picker prototype
+
+Implemented: input-specific planned choices, mixed-input intersection, radial hover/center labels, ring-segment drop capture, an exact-once selection session, and display-aware positioning. The UI explicitly says PREVIEW ONLY and acknowledges the selected target without conversion or filesystem writes.
+
+Verified: build/signature checks plus all previous checks. New checks cover contextual and unknown-input choices, changed-payload rejection, repeated drop rejection, batch requests, clockwise segment mapping, center/outside/gap rejection, single/empty wheels, small screens, and negative display coordinates.
+
+Pending: visual review and live drag/drop on Desktop/Finder, including timing and permissions. Phase 2's graphical gate remains open; Phase 3 was implemented provisionally after the user's next-phase instruction. Planned targets must become engine-backed available routes in Phase 4.
+
+Conversion engines and mascot animations are not active yet.
