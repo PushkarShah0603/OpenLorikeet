@@ -6,6 +6,7 @@ Status: planning only. Complete each phase's checks before marking it done.
 - Local macOS background utility; no dashboard or main application window.
 - Drag files on the Desktop or in Finder, hold **Shift**, hover a radial format segment, and release to convert.
 - Match the recorded experience: contextual wheel, hovered format in its center, compact notch feedback, and **Open / Show in Finder** on completion. Provide a top-edge fallback on displays without a notch.
+- Include an animated lorikeet companion that watches the interaction and reacts to conversion state; celebrate verified success with a short falling-feather effect.
 - Save converted copies beside originals. Never silently overwrite files.
 - All conversion stays local; install dependencies explicitly and verify offline operation. Fast access does not imply instant processing of large files.
 - Independent implementation with OpenLorikeet branding. Review licensing before reusing upstream code or bundling engines.
@@ -60,6 +61,7 @@ Only expose implemented routes with available engines. Image → DOCX embeds an 
 
 ### Phase 06 — Notch feedback
 - [ ] Add ready, hovered-target, processing, success, failure, and cancellation states.
+- [ ] Connect a placeholder animated lorikeet to these states; develop its reactions alongside the conversion flow.
 - [ ] Provide Open / Show in Finder; dismiss successful results and retain readable errors.
 - [ ] Add a minimal menu-bar menu for quit and preferences; use no main window.
 **Done when:** a DOCX converts end to end through the recorded gesture and feedback pattern.
@@ -116,11 +118,28 @@ Only expose implemented routes with available engines. Image → DOCX embeds an 
 - [ ] Preinstall/cache dependencies and surface missing packages or compilation errors.
 **Done when:** multi-file projects compile correctly with networking disabled and leave sources untouched.
 
-### Phase 16 — Batch reliability and interaction polish
+### Phase 16 — Batch reliability and companion animation
 - [ ] Support multiple files with independent progress, failures, cancellation, and output naming.
 - [ ] Define mixed-selection behavior: show compatible actions and clearly identify skipped files.
+- [ ] Implement the companion reactions below, using actual job events rather than animation timers to infer success.
+- [ ] Add a brief feather celebration after validated output is saved. Keep particles near the companion, ignore mouse input, clean them up automatically, and prevent overlapping batch celebrations.
+- [ ] Support Reduce Motion and a celebration toggle; stop animation work when hidden.
 - [ ] Test repeated gestures, large files, display changes, reduced motion, and keyboard cancellation.
-**Done when:** the interface stays responsive and a failed file does not prevent the rest from completing.
+**Done when:** the interface stays responsive, a failed file does not prevent the rest from completing, and reactions correctly follow success, failure, cancellation, and partial batch completion.
+
+#### Lorikeet reaction sequence
+| Event | Companion reaction |
+|---|---|
+| Shift during a file drag | Wake, peek out, and blink; reveal the wheel |
+| Hover a format | Eyes/head turn toward the selected segment; small curious tilt |
+| Release onto a format | Quick nod or wing flick to acknowledge the choice |
+| Conversion running | Gentle attentive loop; truthful progress remains visible |
+| Output validated and saved | Happy hop/wing flutter, then a few colorful feathers drift down and fade |
+| Failure | Concerned tilt beside a readable error; no success celebration |
+| Cancel / abandon drag | Settle and retract quietly |
+| Batch ends | One summary reaction; partial failures stay visible |
+
+Use the notch/status panel as the companion's home. Reserve Shift alone for normal macOS behavior unless the user later requests a standalone shortcut. Keep celebrations brief (about 1–2 seconds), preserve access to result buttons, and substitute a static pose/fade with Reduce Motion. A static app icon alone is insufficient for expressive movement: prepare layered artwork or animation frames for eyes, head, wings, and feathers during branding integration.
 
 ### Phase 17 — Icon and packaging
 - [ ] Integrate the approved lorikeet icon/mascot and generate required icon sizes.
