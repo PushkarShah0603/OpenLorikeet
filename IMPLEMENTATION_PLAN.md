@@ -1,44 +1,143 @@
-# OpenLorikeet — Implementation Plan
+# OpenLorikeet — Phased Implementation Plan
 
-## Goal
-Build a local macOS background utility inspired by Open Tangerine: drag files in Finder, hold **Shift**, choose an action, and save converted copies beside the originals. No dashboard or main window; only a small format picker, progress indicator, and error messages. Processing stays offline. Fast access is the goal; large conversions may take time.
+Status: planning only. Complete each phase's checks before marking it done.
 
-## Required conversions
+## Product agreement
+- Local macOS background utility; no dashboard or main application window.
+- Drag files on the Desktop or in Finder, hold **Shift**, hover a radial format segment, and release to convert.
+- Match the recorded experience: contextual wheel, hovered format in its center, compact notch feedback, and **Open / Show in Finder** on completion. Provide a top-edge fallback on displays without a notch.
+- Save converted copies beside originals. Never silently overwrite files.
+- All conversion stays local; install dependencies explicitly and verify offline operation. Fast access does not imply instant processing of large files.
+- Independent implementation with OpenLorikeet branding. Review licensing before reusing upstream code or bundling engines.
+- Commit verified major milestones as `Pushkar <shahpushkar0603@gmail.com>`. The user will push. No AI co-author trailers or added collaborators.
+
+## Planned format coverage
 | Input | Outputs / actions |
 |---|---|
-| DOCX | PDF, TXT, HTML, Markdown, LaTeX, ODT |
-| PDF | Editable DOCX, TXT, PNG, JPG; merge and split |
+| DOCX | PDF, TXT, HTML, ODT, Markdown, LaTeX |
+| PDF | Editable DOCX, TXT, JPG, PNG; merge and split |
 | CSV / TSV | XLSX, PDF; CSV ↔ TSV |
-| XLSX | PDF, CSV, TSV (one text file per sheet) |
-| Markdown | DOCX, HTML, LaTeX, PDF |
-| LaTeX | PDF with equations, citations, and project dependencies |
-| JPG / PNG / HEIC | Convert, compress, resize; images → PDF |
+| XLSX | PDF, CSV, TSV; separate text output per sheet |
+| Markdown | HTML, DOCX, LaTeX, PDF |
+| LaTeX project | PDF with equations, citations, references, and included files |
+| JPG / PNG / HEIC | Compatible image formats, compression, resizing, PDF |
+| JPG / PNG | DOCX containing the image, matching the recorded operation |
 
-## Interaction reference (observed in the supplied recording)
-- Match the desktop drag workflow: Shift-drag reveals a radial wheel near the pointer; drag onto a format segment and release to convert.
-- Adapt wheel choices to the input. Display the hovered format in the center and update a compact status panel beneath the notch.
-- Use the notch panel for ready, processing, and completion states, with an OpenLorikeet mascot and **Open / Show in Finder** result actions.
-- Save copies beside the source. The recording shows image → DOCX and PDF → DOCX completion; output editability/layout was not demonstrated.
-- Fix the observed DOCX input dead end: `Sample.docx` displays **No conversions available** in Open Tangerine. OpenLorikeet must offer working DOCX routes.
+Only expose implemented routes with available engines. Image → DOCX embeds an image; OCR and editable text are separate features. PDF → DOCX is best-effort reconstruction, not guaranteed layout equivalence. PDF → original LaTeX is outside the initial scope.
 
-## Implementation
-1. **Prove the engines:** test real DOCX, PDF, CSV, image, and LaTeX samples before connecting the gesture.
-2. **Build the core:** Swift job queue and one conversion interface. Use ImageIO for images, PDFKit for PDF utilities, LibreOffice for Office conversion, Pandoc for structured documents, and a local TeX engine for LaTeX. Evaluate a dedicated PDF-to-DOCX engine with local OCR for scans. Add a CSV/XLSX worker and lossless PNG optimizer.
-3. **Add the gesture:** use AppKit for a background app and Shift-drag picker. Check macOS permission requirements early. Show only supported actions whose engines are ready; explain missing dependencies.
-4. **Make jobs reliable:** background workers, timeouts, cancellation, per-file results, output validation, unique filenames, and originals preserved.
-5. **Polish and package:** add simple compression presets and target-size mode, optional launch at login, a minimal quit/settings menu, and a clean-Mac installation test. Prepare signing and notarization for distribution.
+## Small implementation phases
 
-## Delivery order
-- **Milestone 1:** Shift-drag + DOCX → PDF + JPG/PNG/HEIC conversion and compression.
-- **Milestone 2:** CSV ↔ XLSX, spreadsheet → readable PDF, PDF utilities.
-- **Milestone 3:** PDF → DOCX with OCR, Markdown and LaTeX routes.
-- **Later:** saved recipes, Finder Quick Actions, watch folders, and audio/video conversions.
+### Phase 01 — Project foundation
+- [ ] Create the Swift/AppKit app structure, shared conversion core, and reproducible build command.
+- [ ] Confirm the target Mac's OS/architecture and choose the minimum supported macOS version.
+- [ ] Add a placeholder icon; the final icon must not block development.
+**Done when:** the app builds and starts as a background utility without a main window.
 
-## Acceptance checks
-- Every offered route produces a readable output; missing tools produce actionable errors.
-- Test document layout, editable PDF extraction, scanned pages, equations, and references. PDF → DOCX is best-effort; PDF → original LaTeX is outside the initial scope.
-- Preserve CSV identifiers, leading zeros, Unicode, and quoted fields; paginate wide tables clearly.
-- Test image orientation, transparency, color, size savings, and mixed batches. Report when compression cannot improve size or meet a target.
-- Preinstall/cache dependencies for offline use. Test LaTeX projects with included files and bibliographies.
+### Phase 02 — Prove Shift-drag detection
+- [ ] Prototype detecting real file drags and Shift without interfering with ordinary Finder gestures.
+- [ ] Verify required macOS permissions and document any user setup.
+- [ ] Handle cancelled drags, Shift release, and non-file drags.
+**Done when:** the gesture reliably shows and dismisses a temporary drop target on the Desktop and in Finder. Resolve this feasibility gate before polishing the wheel.
 
-**Codebase decision:** prefer an independent implementation; if reusing Open Tangerine code, review and follow its GPL-3.0-only licensing. AI/RAG is not part of the agreed core scope.
+### Phase 03 — Radial picker
+- [ ] Build the wheel around the pointer, with input-specific choices and a central hover label.
+- [ ] Accept a drop on a segment; cancel cleanly outside it or with Escape.
+- [ ] Keep the wheel within screen edges and support multiple displays.
+**Done when:** the chosen file and output format reach the conversion core exactly once.
+
+### Phase 04 — Conversion registry and workers
+- [ ] Define one request/result interface and one registry for supported routes and engine readiness.
+- [ ] Add a background queue, bounded concurrency, temporary workspaces, timeouts, and cancellation.
+- [ ] Reserve unique output paths, verify generated files, and publish completed copies safely.
+- [ ] Invoke external tools with argument arrays; collect useful errors and clean temporary files.
+**Done when:** success, missing-engine, damaged-input, timeout, and filename-collision cases behave correctly.
+
+### Phase 05 — DOCX conversion
+- [ ] Integrate a local LibreOffice adapter, using isolated profiles for conversion jobs.
+- [ ] Implement DOCX → PDF first, then TXT, HTML, and ODT with tested export settings.
+- [ ] Verify generated documents and report missing fonts or conversion failures where detectable.
+**Done when:** representative DOCX files with tables, images, headers, and page breaks produce readable PDFs; every additional advertised route passes its own checks.
+
+### Phase 06 — Notch feedback
+- [ ] Add ready, hovered-target, processing, success, failure, and cancellation states.
+- [ ] Provide Open / Show in Finder; dismiss successful results and retain readable errors.
+- [ ] Add a minimal menu-bar menu for quit and preferences; use no main window.
+**Done when:** a DOCX converts end to end through the recorded gesture and feedback pattern.
+
+### Phase 07 — Image conversion
+- [ ] Use ImageIO for available JPG, PNG, and HEIC input/output routes; probe encoder support.
+- [ ] Preserve orientation and color deliberately; handle transparency when exporting JPEG.
+- [ ] Add image → PDF and JPG/PNG → DOCX embedding.
+**Done when:** outputs open correctly and preserve expected dimensions, orientation, and appearance.
+
+### Phase 08 — Image compression
+- [ ] Add JPEG/HEIC quality presets and lossless PNG optimization, followed by optional resizing.
+- [ ] Add target-size compression with bounded attempts and explicit dimension/quality limits.
+- [ ] Report bytes saved; avoid replacing an image with a larger compressed result.
+**Done when:** each format has tested compression behavior and impossible targets return a clear result.
+
+### Phase 09 — CSV, TSV, and XLSX
+- [ ] Implement robust delimited-text parsing and XLSX writing; select and validate the worker/library before integration.
+- [ ] Preserve leading zeros, long identifiers, Unicode, quoted delimiters, and multiline cells; do not interpret CSV text as executable formulas.
+- [ ] Export XLSX sheets separately to CSV/TSV with collision-safe names; define formula-value handling.
+**Done when:** fixture comparisons preserve intended values and malformed or ambiguous inputs report useful errors.
+
+### Phase 10 — Spreadsheet PDF export
+- [ ] Implement CSV/TSV/XLSX → PDF with suitable orientation, readable column widths, repeated headings, and pagination.
+- [ ] Define how wide tables and multiple sheets are split across pages.
+**Done when:** narrow, wide, long, and multi-sheet examples render without clipped or unreadably small content.
+
+### Phase 11 — PDF utilities
+- [ ] Use PDFKit for selectable-text extraction, page images, merge, and split.
+- [ ] Define page ordering and output naming; handle encrypted PDFs and image-only pages explicitly.
+**Done when:** page counts/order and text/image outputs match the test documents.
+
+### Phase 12 — PDF → editable DOCX
+- [ ] Benchmark local candidate engines on simple pages, tables, images, and multi-column layouts; check maintenance, packaging, and licenses.
+- [ ] Integrate the selected engine and expose honest fidelity limitations.
+- [ ] Verify editable paragraphs and tables rather than counting a page-image wrapper as editable conversion.
+**Done when:** representative outputs open in a Word-compatible editor, contain editable content, and have reviewed layout results.
+
+### Phase 13 — Local OCR
+- [ ] Detect image-only PDF pages and evaluate a local OCR engine, including mixed text/scanned PDFs.
+- [ ] Route recognized text and layout into DOCX generation without duplicating existing text.
+- [ ] Make supported languages and weak recognition results clear.
+**Done when:** scanned fixtures produce editable text, and OCR quality has been checked against known text.
+
+### Phase 14 — Markdown and LaTeX conversion
+- [ ] Integrate Pandoc for DOCX ↔ Markdown/LaTeX and Markdown → HTML/DOCX.
+- [ ] Test supported equations, tables, code blocks, and embedded media; keep exported assets with their document.
+**Done when:** supported structures survive conversion, and unsupported formatting is documented without promises of exact layout preservation.
+
+### Phase 15 — LaTeX compilation
+- [ ] Evaluate Tectonic versus local TeX Live against real projects; select supported engines explicitly.
+- [ ] Compile .tex and Markdown-derived LaTeX to PDF with bibliography passes, references, images, and included files.
+- [ ] Keep auxiliary outputs isolated, resolve project-relative paths, disable unrestricted shell execution, and enforce timeouts.
+- [ ] Preinstall/cache dependencies and surface missing packages or compilation errors.
+**Done when:** multi-file projects compile correctly with networking disabled and leave sources untouched.
+
+### Phase 16 — Batch reliability and interaction polish
+- [ ] Support multiple files with independent progress, failures, cancellation, and output naming.
+- [ ] Define mixed-selection behavior: show compatible actions and clearly identify skipped files.
+- [ ] Test repeated gestures, large files, display changes, reduced motion, and keyboard cancellation.
+**Done when:** the interface stays responsive and a failed file does not prevent the rest from completing.
+
+### Phase 17 — Icon and packaging
+- [ ] Integrate the approved lorikeet icon/mascot and generate required icon sizes.
+- [ ] Add optional launch at login and a dependency readiness check.
+- [ ] Choose dependency distribution, include required notices, and test installation on a clean Mac.
+- [ ] Prepare signing/notarization for distribution when credentials are available.
+**Done when:** a documented installation runs the supported conversion set offline; remaining distribution blockers are explicit.
+
+## Milestones and commits
+- **A — Core experience:** phases 01–06; Shift-drag DOCX → PDF with notch feedback.
+- **B — Images:** phases 07–08; conversion, compression, and image document export.
+- **C — Tables and PDFs:** phases 09–11; spreadsheet routes and PDF utilities.
+- **D — Editable PDF conversion:** phases 12–13; native-text and scanned PDF → DOCX.
+- **E — Technical documents:** phases 14–15; Markdown and LaTeX project support.
+- **F — Usable release:** phases 16–17; batch reliability, branding, and packaging.
+
+Run focused checks per phase; commit coherent verified work and each completed milestone. Record limitations rather than marking untested routes complete. Keep screen recordings and private samples out of Git. The user handles pushes.
+
+## Later additions
+Saved recipes, Finder Quick Actions, watch folders, and audio/video engines. Add these only after the required routes and interaction are dependable.
