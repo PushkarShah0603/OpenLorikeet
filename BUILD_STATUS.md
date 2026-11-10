@@ -16,3 +16,9 @@ The app builds for macOS 15 or newer. The Apple silicon ZIP passed archive valid
 LibreOffice and Pandoc are absent on the build Mac, so their integration checks skip. Tectonic is installed. Its cache covers the 11 pt fixture but lacks some packages used by other documents.
 
 The graphical smoke test aborts during macOS application registration in this environment. Test the package in a normal graphical session with the [Finder checklist](docs/GESTURE_TESTING.md). OCR, HEIC, optional engine results, and graphical acceptance remain open.
+
+## Review pass
+
+The regression suite covers deadlines during output validation, submissions arriving after queue shutdown, late drag data, volume filename limits, rotated PDF crop geometry, and Excel escape sequences. PNG optimization processes decoded data in blocks and validates chunk checksums. The build script stages and signs a fresh app before replacing the previous bundle.
+
+The GitHub Pages site passes static link, asset, markup, and demo behavior checks. Browser rendering remains pending because the preview host was unavailable and local headless Chromium could not initialize its sandbox. The app smoke test still aborts during graphical registration in this environment.

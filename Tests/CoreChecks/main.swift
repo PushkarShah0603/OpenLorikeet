@@ -38,6 +38,7 @@ print("PASS: aliases, canonical extensions, remote/unknown input rejection, Unic
 var gesture = DragTrigger()
 check(!gesture.update(pressed: false, shift: false, generation: 10, hasFiles: true), "Idle ignores stale files")
 check(!gesture.update(pressed: true, shift: true, generation: 10, hasFiles: true), "Shift-click ignores stale drag pasteboard")
+check(!gesture.update(pressed: true, shift: true, generation: 11, hasFiles: false), "A drag with delayed URLs waits for data")
 check(gesture.update(pressed: true, shift: true, generation: 11, hasFiles: true), "Fresh file drag plus Shift reveals target")
 check(!gesture.update(pressed: true, shift: false, generation: 11, hasFiles: true), "Shift release hides target")
 check(gesture.update(pressed: true, shift: true, generation: 11, hasFiles: true), "Shift can reveal same active drag again")

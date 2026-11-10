@@ -23,6 +23,7 @@ final class DragMonitor {
     }
     private var cachedGeneration: Int?
     private var cachedURLs: [URL] = []
+    private var wheelAnchor: NSPoint?
 
     func start() {
         guard timer == nil, !isStopping else { return }
@@ -50,6 +51,7 @@ final class DragMonitor {
         target.onDrop = { [weak self] requests in
             guard let self, !self.isStopping else { return }
             self.trigger.cancel()
+            self.wheelAnchor = nil
             self.target.hide()
             Task {
                 await self.queue.submit(requests)
@@ -112,30 +114,36 @@ final class DragMonitor {
 
     private func cancel() {
         trigger.cancel()
+        wheelAnchor = nil
         target.hide()
         if tracked.isEmpty { feedback.hide() }
     }
 
     private func tick() {
         let pressed = NSEvent.pressedMouseButtons & 1 != 0
+        let shift = NSEvent.modifierFlags.contains(.shift)
         let generation = pasteboard.changeCount
-        // Read drag metadata only; the general clipboard is never read.
-        if generation != cachedGeneration {
+        let previousURLs = cachedURLs
+        // A drag source may publish URLs lazily without advancing changeCount.
+        // Read them only while Shift and the left button are held.
+        if !pressed || !shift {
+            cachedGeneration = nil
+            cachedURLs = []
+        } else if generation != cachedGeneration || cachedURLs.isEmpty {
             cachedURLs = Self.fileURLs(from: pasteboard)
             cachedGeneration = generation
         }
         let wasVisible = trigger.isVisible
-        let visible = trigger.update(
-            pressed: pressed, shift: NSEvent.modifierFlags.contains(.shift),
-            generation: generation, hasFiles: !cachedURLs.isEmpty
-        )
+        let visible = trigger.update(pressed: pressed, shift: shift, generation: generation, hasFiles: !cachedURLs.isEmpty)
         if visible {
-            if !wasVisible {
-                let point = NSEvent.mouseLocation
+            if !wasVisible || cachedURLs != previousURLs {
+                let point = wheelAnchor ?? NSEvent.mouseLocation
+                wheelAnchor = point
                 let available = target.show(near: point, urls: cachedURLs)
                 if tracked.isEmpty { feedback.ready(at: point, fileCount: cachedURLs.count, available: available) }
             }
         } else if wasVisible {
+            wheelAnchor = nil
             if tracked.isEmpty { feedback.hide() }
             // Let AppKit finish performDragOperation before ordering out the panel.
             if !pressed {
@@ -150,9 +158,15 @@ final class DragMonitor {
     }
 
     static func fileURLs(from pasteboard: NSPasteboard) -> [URL] {
-        let urls = pasteboard.readObjects(
+        var urls = pasteboard.readObjects(
             forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]
         ) as? [URL] ?? []
+        if urls.isEmpty {
+            urls = (pasteboard.pasteboardItems ?? []).compactMap { item in
+                guard let value = item.string(forType: .fileURL) else { return nil }
+                return URL(string: value)
+            }
+        }
         var seen = Set<URL>()
         return urls.compactMap { url in
             guard url.isFileURL else { return nil }
