@@ -1,8 +1,11 @@
 import AppKit
 import Foundation
 
-// Temporary vector-drawn icon; replace with approved branding in phase 17.
+// Rasterize the supplied artwork at the exact icon representation sizes.
 let output = URL(fileURLWithPath: CommandLine.arguments[1])
+guard let artwork = NSImage(contentsOfFile: CommandLine.arguments[2]) else {
+    fatalError("Could not load OpenLorikeet icon artwork")
+}
 let iconset = output.appendingPathComponent("AppIcon.iconset")
 try FileManager.default.createDirectory(at: iconset, withIntermediateDirectories: true)
 for size in [16, 32, 128, 256, 512] {
@@ -18,17 +21,8 @@ for size in [16, 32, 128, 256, 512] {
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = context
         let bounds = NSRect(x: 0, y: 0, width: pixels, height: pixels)
-        NSColor(calibratedRed: 0.08, green: 0.15, blue: 0.20, alpha: 1).setFill()
-        NSBezierPath(roundedRect: bounds.insetBy(dx: Double(pixels) * 0.04, dy: Double(pixels) * 0.04),
-                     xRadius: Double(pixels) * 0.22, yRadius: Double(pixels) * 0.22).fill()
-        let label = "OL" as NSString
-        let attrs: [NSAttributedString.Key: Any] = [
-            .font: NSFont.boldSystemFont(ofSize: Double(pixels) * 0.43),
-            .foregroundColor: NSColor(calibratedRed: 0.4, green: 0.9, blue: 0.45, alpha: 1),
-        ]
-        let textSize = label.size(withAttributes: attrs)
-        label.draw(at: NSPoint(x: (Double(pixels) - textSize.width) / 2,
-                               y: (Double(pixels) - textSize.height) / 2), withAttributes: attrs)
+        context.imageInterpolation = .high
+        artwork.draw(in: bounds, from: .zero, operation: .copy, fraction: 1)
         NSGraphicsContext.restoreGraphicsState()
         guard let png = bitmap.representation(using: .png, properties: [:]) else {
             fatalError("Could not render placeholder icon")

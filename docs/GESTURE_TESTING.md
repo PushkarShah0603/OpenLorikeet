@@ -1,9 +1,9 @@
-# Phase 2–3 interaction prototype
+# Finder and Desktop acceptance
 
 ## Behavior
 The background app samples left-button state, Shift, and the drag pasteboard at 30 Hz. A fresh file drag plus Shift reveals a radial format picker near the pointer. The wheel stays anchored so the pointer can move onto a segment. Its frame is clamped to the selected display. Shift release hides it; dropping outside also dismisses it. Normal drags and Shift-clicks with stale pasteboard contents do not activate it.
 
-The picker now lists formats supported by ready engines across all selected files. The current build has an empty registry, so the wheel displays “No engines.” With a registered engine, dropping on a segment captures the request once and submits it to the conversion queue. Folders, web URLs, text drags, and unavailable files are rejected.
+The picker lists formats and actions supported by ready engines across the selected files. Dropping on a segment submits the requests. The top-edge panel shows the job status and offers Open or Show in Finder once a validated output is saved. Feathers fall after a successful batch when celebrations are enabled and Reduce Motion is off. Folders, web URLs, text drags, and unavailable files are rejected.
 
 ## Permissions
 No permission prompt or permission change is performed by the app. The base prototype polls mouse/modifier state and reads only the drag pasteboard, not the general clipboard. Actual behavior under macOS privacy controls remains a graphical-session test.
@@ -18,11 +18,12 @@ References:
 1. Build with `./scripts/build.sh`, then launch `dist/OpenLorikeet.app` in a normal logged-in session.
 2. Drag a real Desktop file normally: no target. Add Shift: target appears near the pointer.
 3. Release Shift: target hides. Hold Shift again during the same drag: target reappears.
-4. With a ready engine registered, move onto each segment: its highlight and central target label update. Release with Shift held: one target-specific receipt appears, then disappears. Drops in the center or gaps must do nothing. Confirm the source is untouched and a converted copy appears beside it.
+4. Move onto a segment and confirm the highlight, center label, and lorikeet update. Release with Shift held and check that one conversion is submitted. Drops in the center or gaps should dismiss without a job. Check the output beside the source and try Open and Show in Finder.
 5. Drop outside the target: it hides. Repeat rapidly and verify stale pasteboard contents do not cause false activation on Shift-click.
 6. Repeat inside Finder, with multiple files, and at each display edge on multiple displays.
 7. Try dragging text, web links, folders, and Finder selection rectangles: no target.
 8. Cancel with Escape, with and without pre-existing Accessibility trust. Confirm no stuck overlay after mouse/Shift release. Escape may remain unavailable globally without trust.
-9. Quit using the menu bar; monitoring and the temporary panel stop.
+9. Test successful, failed, cancelled, and mixed-result batches. Toggle feather celebrations and Reduce Motion. Confirm only successful batches celebrate.
+10. Try Launch at login from the menu after installing the app. Quit using the menu bar and check that active jobs are cancelled.
 
-Automated checks cover gesture-state transitions and release/cancellation suppression. They do not establish real Finder drag delivery, modifier visibility under privacy controls, or AppKit drop callback timing. Resolve these checks before polishing Phase 3.
+Automated checks cover gesture-state transitions and release/cancellation suppression. They do not establish real Finder drag delivery, modifier visibility under privacy controls, or AppKit drop callback timing. Record these results before distribution.

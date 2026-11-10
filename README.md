@@ -1,30 +1,48 @@
 # OpenLorikeet
 
-Your files. A quick shift.
+OpenLorikeet is a local macOS file converter. Drag a file from Finder or the Desktop, hold Shift, and drop it on an available format. The lorikeet follows the picker and celebrates after a converted copy is saved beside the original.
 
-A native macOS background utility being built for Shift-drag file conversion, a radial format picker, and an animated lorikeet with compact notch feedback.
+## Install and try
 
-## Current status
-Shift-drag shows the ready formats for the selected files. Native routes include DOCX text/HTML and image conversion. Install [LibreOffice](https://www.libreoffice.org/download/download-libreoffice/) for Word PDF and ODT export. A compact status panel shows job progress and provides Open and Show in Finder after a successful save. Desktop and Finder testing is pending. See the [implementation plan](IMPLEMENTATION_PLAN.md).
-
-## Build and run
-Requires macOS 15 or newer and a Swift 6 toolchain from Xcode or Command Line Tools. No external Swift packages or conversion engines are required for this phase. The build targets the current Mac's architecture.
+Use macOS 15 or newer. The build targets the Mac on which it runs. Build from source with Xcode or Command Line Tools and Swift 6.
 
 ```sh
-./scripts/build.sh
+./scripts/package.sh
 open dist/OpenLorikeet.app
 ```
 
-The app runs without a main window or Dock icon. Find its bird icon (or `OL` fallback) in the menu bar; use **Quit OpenLorikeet** to stop it. The generated bundle is ad-hoc signed for local development, not notarized for distribution.
+The ZIP in `dist/` contains the app for the current architecture. Extract it and move the app to Applications for regular use. The default build uses an ad-hoc signature for local development. The app lives in the menu bar with engine status, launch at login, feather celebrations, and Quit.
 
-The scripts currently select SwiftPM’s native build backend and omit debug symbols to work around the installed toolchain’s restricted debug-symbol generation. Core checks use a standalone executable so XCTest and compiler macro plugins are not required.
+## Formats and actions
 
-## Verify
+| Source | Available operations |
+|---|---|
+| DOCX | Text and simple HTML. PDF and ODT with LibreOffice. Markdown and LaTeX with Pandoc |
+| PDF | Selectable text, page images, split, merge, and editable Word reconstruction |
+| CSV and TSV | Delimited text, XLSX, and paginated PDF |
+| XLSX | PDF and one CSV or TSV per worksheet |
+| JPG, PNG, HEIC | Image format conversion when the encoder probe passes, PDF, compression, 500 KB target, and 1600 px resize |
+| JPG and PNG | Embedded image in Word |
+| Markdown | HTML, DOCX, and LaTeX with Pandoc. PDF with Pandoc and Tectonic |
+| LaTeX | Cached offline PDF compilation with Tectonic. DOCX and Markdown with Pandoc |
+
+Mixed selections show shared formats and actions. PDF merge follows the order supplied by Finder. PDF page exports, split PDFs, worksheet exports, and technical document bundles use output folders. Existing files and folders are preserved.
+
+PDF-to-Word reconstructs text and simple aligned tables. Exact layout, columns, and embedded illustrations can change or be omitted. Vision recognizes image-only pages and flags low-confidence text. Native Word HTML preserves paragraphs and text. For formatted Word export, install LibreOffice. XLSX export uses stored formula results and underlying values, so dates and numbers can differ from formatted Excel display. CSV-to-XLSX stores values as text.
+
+## Optional local engines
+
+Install engines separately, then relaunch OpenLorikeet. The app searches the standard LibreOffice application path and common package-manager binary paths. Engine status is available from the menu bar.
+
+- [LibreOffice](https://www.libreoffice.org/download/download-libreoffice/) for formatted Word PDF and ODT.
+- [Pandoc](https://pandoc.org/installing.html) for Markdown and LaTeX conversion. A build with embedded data files supports sandboxed DOCX writing. Relative PNG and JPG assets inside the source folder are supported by the adapter. [Pandoc sandbox documentation](https://pandoc.org/MANUAL.html#option--sandbox)
+- [Tectonic](https://tectonic-typesetting.github.io/) for PDF compilation. Populate the package cache for your projects separately. OpenLorikeet uses cached files only and disables shell escape. [Tectonic compile options](https://tectonic-typesetting.github.io/book/latest/v2cli/compile.html)
+
+## Verify a build
+
 ```sh
 ./scripts/test.sh
 ./dist/OpenLorikeet.app/Contents/MacOS/OpenLorikeet --smoke-test
 ```
 
-The smoke test requires a logged-in graphical macOS session. It follows the real launch path, checks the accessory activation policy, verifies no windows were created and that the status item was allocated, prints a result, and exits. This does not verify the menu's visual appearance; check that manually after opening the app.
-
-Build products and temporary files stay out of Git. Commits use the repository's configured author identity; the user handles pushes.
+The smoke test needs a logged-in graphical macOS session. See the [Finder checklist](docs/GESTURE_TESTING.md) and [verification status](BUILD_STATUS.md). Signing and distribution instructions are in [PACKAGING.md](docs/PACKAGING.md).

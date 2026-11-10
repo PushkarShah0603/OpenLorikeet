@@ -10,8 +10,12 @@ app="$PWD/dist/OpenLorikeet.app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$bin_dir/OpenLorikeet" "$app/Contents/MacOS/OpenLorikeet"
 cp Resources/Info.plist "$app/Contents/Info.plist"
-swift -module-cache-path "$CLANG_MODULE_CACHE_PATH" scripts/make-icon.swift "$app/Contents/Resources"
+swift -module-cache-path "$CLANG_MODULE_CACHE_PATH" scripts/make-icon.swift "$app/Contents/Resources" Resources/AppIcon.png
 plutil -lint "$app/Contents/Info.plist"
-codesign --force --sign - "$app"
+if [[ -n "${LORIKEET_SIGN_IDENTITY:-}" ]]; then
+    codesign --force --options runtime --timestamp --sign "$LORIKEET_SIGN_IDENTITY" "$app"
+else
+    codesign --force --sign - "$app"
+fi
 codesign --verify --strict "$app"
 printf 'Built %s\n' "$app"

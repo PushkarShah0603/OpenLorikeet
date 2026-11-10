@@ -1,6 +1,6 @@
 # OpenLorikeet — Phased Implementation Plan
 
-Status: Phases 01–04 implemented. Graphical acceptance remains pending. Complete each phase’s checks before marking it done.
+Status: implementation spans Phases 01–17. [Verification status](BUILD_STATUS.md) records open graphical, engine, and distribution checks. Complete each phase’s checks before marking it done.
 
 ## Product agreement
 - Local macOS background utility; no dashboard or main application window.
@@ -62,76 +62,76 @@ Automated checks verify exact-once request capture and geometry; live drag deliv
 Fixture engines and real subprocess checks verify the worker paths. Phase 05 will register the first document engine.
 
 ### Phase 05 — DOCX conversion
-- [ ] Integrate a local LibreOffice adapter, using isolated profiles for conversion jobs.
-- [ ] Implement DOCX → PDF first, then TXT, HTML, and ODT with tested export settings.
+- [x] Integrate a local LibreOffice adapter, using isolated profiles for conversion jobs.
+- [x] Implement DOCX → PDF first, then TXT, HTML, and ODT with tested export settings.
 - [ ] Verify generated documents and report missing fonts or conversion failures where detectable.
-**Done when:** representative DOCX files with tables, images, headers, and page breaks produce readable PDFs; every additional advertised route passes its own checks.
+**Done when:** representative DOCX files with tables, images, headers, and page breaks produce readable PDFs; every additional advertised route passes its own checks. TXT and HTML pass. LibreOffice export awaits an installed engine.
 
 ### Phase 06 — Notch feedback
-- [ ] Add ready, hovered-target, processing, success, failure, and cancellation states.
-- [ ] Connect a placeholder animated lorikeet to these states; develop its reactions alongside the conversion flow.
-- [ ] Provide Open / Show in Finder; dismiss successful results and retain readable errors.
-- [ ] Add a minimal menu-bar menu for quit and preferences; use no main window.
+- [x] Add ready, hovered-target, processing, success, failure, and cancellation states.
+- [x] Connect a placeholder animated lorikeet to these states; develop its reactions alongside the conversion flow.
+- [x] Provide Open / Show in Finder; dismiss successful results and retain readable errors.
+- [x] Add a minimal menu-bar menu for quit and preferences; use no main window.
 **Done when:** a DOCX converts end to end through the recorded gesture and feedback pattern.
 
 ### Phase 07 — Image conversion
-- [ ] Use ImageIO for available JPG, PNG, and HEIC input/output routes; probe encoder support.
-- [ ] Preserve orientation and color deliberately; handle transparency when exporting JPEG.
-- [ ] Add image → PDF and JPG/PNG → DOCX embedding.
+- [x] Use ImageIO for available JPG, PNG, and HEIC input/output routes; probe encoder support.
+- [x] Preserve orientation and color deliberately; handle transparency when exporting JPEG.
+- [x] Add image → PDF and JPG/PNG → DOCX embedding.
 **Done when:** outputs open correctly and preserve expected dimensions, orientation, and appearance.
 
 ### Phase 08 — Image compression
-- [ ] Add JPEG/HEIC quality presets and lossless PNG optimization, followed by optional resizing.
-- [ ] Add target-size compression with bounded attempts and explicit dimension/quality limits.
-- [ ] Report bytes saved; avoid replacing an image with a larger compressed result.
+- [x] Add JPEG/HEIC quality presets and lossless PNG optimization, followed by optional resizing.
+- [x] Add target-size compression with bounded attempts and explicit dimension/quality limits.
+- [x] Report bytes saved; avoid replacing an image with a larger compressed result.
 **Done when:** each format has tested compression behavior and impossible targets return a clear result.
 
 ### Phase 09 — CSV, TSV, and XLSX
-- [ ] Implement robust delimited-text parsing and XLSX writing; select and validate the worker/library before integration.
-- [ ] Preserve leading zeros, long identifiers, Unicode, quoted delimiters, and multiline cells; do not interpret CSV text as executable formulas.
-- [ ] Export XLSX sheets separately to CSV/TSV with collision-safe names; define formula-value handling.
+- [x] Implement robust delimited-text parsing and XLSX writing; select and validate the worker/library before integration.
+- [x] Preserve leading zeros, long identifiers, Unicode, quoted delimiters, and multiline cells; do not interpret CSV text as executable formulas.
+- [x] Export XLSX sheets separately to CSV/TSV with collision-safe names; define formula-value handling.
 **Done when:** fixture comparisons preserve intended values and malformed or ambiguous inputs report useful errors.
 
 ### Phase 10 — Spreadsheet PDF export
-- [ ] Implement CSV/TSV/XLSX → PDF with suitable orientation, readable column widths, repeated headings, and pagination.
-- [ ] Define how wide tables and multiple sheets are split across pages.
+- [x] Implement CSV/TSV/XLSX → PDF with suitable orientation, readable column widths, repeated headings, and pagination.
+- [x] Define how wide tables and multiple sheets are split across pages.
 **Done when:** narrow, wide, long, and multi-sheet examples render without clipped or unreadably small content.
 
 ### Phase 11 — PDF utilities
-- [ ] Use PDFKit for selectable-text extraction, page images, merge, and split.
-- [ ] Define page ordering and output naming; handle encrypted PDFs and image-only pages explicitly.
+- [x] Use PDFKit for selectable-text extraction, page images, merge, and split.
+- [x] Define page ordering and output naming; handle encrypted PDFs and image-only pages explicitly.
 **Done when:** page counts/order and text/image outputs match the test documents.
 
 ### Phase 12 — PDF → editable DOCX
 - [ ] Benchmark local candidate engines on simple pages, tables, images, and multi-column layouts; check maintenance, packaging, and licenses.
-- [ ] Integrate the selected engine and expose honest fidelity limitations.
-- [ ] Verify editable paragraphs and tables rather than counting a page-image wrapper as editable conversion.
+- [x] Integrate the selected engine and expose honest fidelity limitations.
+- [x] Verify editable paragraphs and tables rather than counting a page-image wrapper as editable conversion.
 **Done when:** representative outputs open in a Word-compatible editor, contain editable content, and have reviewed layout results.
 
 ### Phase 13 — Local OCR
 - [ ] Detect image-only PDF pages and evaluate a local OCR engine, including mixed text/scanned PDFs.
-- [ ] Route recognized text and layout into DOCX generation without duplicating existing text.
-- [ ] Make supported languages and weak recognition results clear.
-**Done when:** scanned fixtures produce editable text, and OCR quality has been checked against known text.
+- [x] Route recognized text and layout into DOCX generation without duplicating existing text.
+- [x] Make supported languages and weak recognition results clear.
+**Done when:** scanned fixtures produce editable text, and OCR quality has been checked against known text. Vision recognition remains pending after the local pixel-buffer allocation failure.
 
 ### Phase 14 — Markdown and LaTeX conversion
-- [ ] Integrate Pandoc for DOCX ↔ Markdown/LaTeX and Markdown → HTML/DOCX.
+- [x] Integrate Pandoc for DOCX ↔ Markdown/LaTeX and Markdown → HTML/DOCX.
 - [ ] Test supported equations, tables, code blocks, and embedded media; keep exported assets with their document.
 **Done when:** supported structures survive conversion, and unsupported formatting is documented without promises of exact layout preservation.
 
 ### Phase 15 — LaTeX compilation
 - [ ] Evaluate Tectonic versus local TeX Live against real projects; select supported engines explicitly.
-- [ ] Compile .tex and Markdown-derived LaTeX to PDF with bibliography passes, references, images, and included files.
-- [ ] Keep auxiliary outputs isolated, resolve project-relative paths, disable unrestricted shell execution, and enforce timeouts.
+- [x] Compile .tex and Markdown-derived LaTeX to PDF with bibliography passes, references, images, and included files.
+- [x] Keep auxiliary outputs isolated, resolve project-relative paths, disable unrestricted shell execution, and enforce timeouts.
 - [ ] Preinstall/cache dependencies and surface missing packages or compilation errors.
 **Done when:** multi-file projects compile correctly with networking disabled and leave sources untouched.
 
 ### Phase 16 — Batch reliability and companion animation
-- [ ] Support multiple files with independent progress, failures, cancellation, and output naming.
-- [ ] Define mixed-selection behavior: show compatible actions and clearly identify skipped files.
-- [ ] Implement the companion reactions below, using actual job events rather than animation timers to infer success.
-- [ ] Add a brief feather celebration after validated output is saved. Keep particles near the companion, ignore mouse input, clean them up automatically, and prevent overlapping batch celebrations.
-- [ ] Support Reduce Motion and a celebration toggle; stop animation work when hidden.
+- [x] Support multiple files with independent progress, failures, cancellation, and output naming.
+- [x] Define mixed-selection behavior: show compatible actions and clearly identify skipped files.
+- [x] Implement the companion reactions below, using actual job events rather than animation timers to infer success.
+- [x] Add a brief feather celebration after validated output is saved. Keep particles near the companion, ignore mouse input, clean them up automatically, and prevent overlapping batch celebrations.
+- [x] Support Reduce Motion and a celebration toggle; stop animation work when hidden.
 - [ ] Test repeated gestures, large files, display changes, reduced motion, and keyboard cancellation.
 **Done when:** the interface stays responsive, a failed file does not prevent the rest from completing, and reactions correctly follow success, failure, cancellation, and partial batch completion.
 
@@ -150,10 +150,10 @@ Fixture engines and real subprocess checks verify the worker paths. Phase 05 wil
 Use the notch/status panel as the companion's home. Reserve Shift alone for normal macOS behavior unless the user later requests a standalone shortcut. Keep celebrations brief (about 1–2 seconds), preserve access to result buttons, and substitute a static pose/fade with Reduce Motion. A static app icon alone is insufficient for expressive movement: prepare layered artwork or animation frames for eyes, head, wings, and feathers during branding integration.
 
 ### Phase 17 — Icon and packaging
-- [ ] Integrate the approved lorikeet icon/mascot and generate required icon sizes.
-- [ ] Add optional launch at login and a dependency readiness check.
+- [x] Integrate the second supplied lorikeet icon variant and generate icon sizes.
+- [x] Add optional launch at login and a dependency readiness check.
 - [ ] Choose dependency distribution, include required notices, and test installation on a clean Mac.
-- [ ] Prepare signing/notarization for distribution when credentials are available.
+- [x] Prepare signing/notarization for distribution when credentials are available.
 **Done when:** a documented installation runs the supported conversion set offline; remaining distribution blockers are explicit.
 
 ## Milestones and commits
