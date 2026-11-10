@@ -5,6 +5,7 @@ import Foundation
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
+    private let dragMonitor = DragMonitor()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -20,7 +21,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             fflush(stdout)
             if !passed { exit(EXIT_FAILURE) }
             NSApp.terminate(nil)
+        } else {
+            dragMonitor.start()
         }
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        dragMonitor.stop()
     }
 
     private func configureStatusItem() {
@@ -30,14 +37,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             image?.isTemplate = true
             button.image = image
             if image == nil { button.title = "OL" }
-            button.toolTip = "OpenLorikeet — foundation build"
+            button.toolTip = "OpenLorikeet — Shift-drag gesture prototype"
         }
 
         let menu = NSMenu()
         let title = NSMenuItem(title: "OpenLorikeet", action: nil, keyEquivalent: "")
         title.isEnabled = false
         menu.addItem(title)
-        let status = NSMenuItem(title: "Conversions coming in later phases", action: nil, keyEquivalent: "")
+        let status = NSMenuItem(title: "Shift-drag files to test the drop target", action: nil, keyEquivalent: "")
         status.isEnabled = false
         menu.addItem(status)
         menu.addItem(.separator())

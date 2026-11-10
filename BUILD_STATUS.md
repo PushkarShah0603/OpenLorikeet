@@ -1,4 +1,4 @@
-# Phase 1 verification
+# Build and verification status
 
 Implemented: Swift 6 package, AppKit accessory application, menu-bar quit control, shared conversion request/result/engine types, generated placeholder icon, and reproducible local build/check scripts.
 
@@ -25,4 +25,12 @@ open dist/OpenLorikeet.app
 
 Expected: smoke test prints PASS and exits; ordinary launch shows a menu-bar bird (or OL fallback), no Dock icon, and no main window. Verify Quit works. Phase 1's final launch check remains open until this succeeds.
 
-Conversion engines, Shift-drag interaction, and mascot animations belong to later phases and are not active yet.
+## Phase 2 prototype
+
+Implemented: fresh drag-pasteboard detection, read-only Shift/button polling, a nonactivating temporary file-drop panel, two-second drop acknowledgement, and monitor/timer cleanup. No file conversion is performed.
+
+Verified: release build, bundle/signature checks, and automated gesture-state checks for stale pasteboard, Shift transitions, cancellation suppression, mouse release, non-file drags, and launching mid-drag. Existing core checks still pass.
+
+Pending: actual Desktop/Finder gesture delivery, OS privacy behavior, Escape handling, and drop callback ordering. See [gesture testing](docs/GESTURE_TESTING.md). The existing graphical-launch environment restriction remains. Phase 2 is not marked fully accepted.
+
+Conversion engines, the radial wheel, and mascot animations are not active yet.

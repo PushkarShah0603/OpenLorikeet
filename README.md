@@ -5,7 +5,7 @@ Your files. A quick shift.
 A native macOS background utility being built for Shift-drag file conversion, a radial format picker, and an animated lorikeet with compact notch feedback.
 
 ## Current status
-Phase 1 foundation: background app, minimal menu-bar menu, placeholder icon, shared conversion models, and build/test scripts. File conversion and Shift-drag are not implemented yet. See [the phased implementation plan](IMPLEMENTATION_PLAN.md).
+Phase 1 foundation and Phase 2 gesture prototype are implemented: background app, minimal menu-bar menu, placeholder icon, shared conversion models, and build/check scripts. Shift-drag is wired to a temporary drop target; real Desktop/Finder acceptance is pending. File conversion and the radial wheel are not implemented yet. See [gesture behavior and pending checks](docs/GESTURE_TESTING.md). See [the phased implementation plan](IMPLEMENTATION_PLAN.md).
 
 ## Build and run
 Requires macOS 15 or newer and a Swift 6 toolchain from Xcode or Command Line Tools. No external Swift packages or conversion engines are required for this phase. The build targets the current Mac's architecture.

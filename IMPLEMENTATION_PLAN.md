@@ -1,6 +1,6 @@
 # OpenLorikeet — Phased Implementation Plan
 
-Status: Phase 01 implemented; graphical launch acceptance remains pending. Complete each phase’s checks before marking it done.
+Status: Phase 01 foundation and Phase 02 prototype implemented; graphical acceptance remains pending. Complete each phase’s checks before marking it done.
 
 ## Product agreement
 - Local macOS background utility; no dashboard or main application window.
@@ -37,10 +37,12 @@ Only expose implemented routes with available engines. Image → DOCX embeds an 
 Verification: build, bundle metadata, ad-hoc signature, and core checks pass. Graphical launch is pending: this execution environment aborts inside macOS `_RegisterApplication` before the app delegate runs. See [build status](BUILD_STATUS.md).
 
 ### Phase 02 — Prove Shift-drag detection
-- [ ] Prototype detecting real file drags and Shift without interfering with ordinary Finder gestures.
-- [ ] Verify required macOS permissions and document any user setup.
-- [ ] Handle cancelled drags, Shift release, and non-file drags.
+- [x] Implement the file-drag/Shift detection prototype; verify real Finder interaction in a graphical session.
+- [ ] Verify required macOS permissions on the running Mac; documented API requirements and the optional trusted global Escape monitor.
+- [x] Implement mouse/Shift release, cancellation suppression, and non-file filtering; real Escape behavior remains an acceptance check.
 **Done when:** the gesture reliably shows and dismisses a temporary drop target on the Desktop and in Finder. Resolve this feasibility gate before polishing the wheel.
+
+Build and automated state checks pass. Graphical acceptance is still pending; see [gesture test instructions](docs/GESTURE_TESTING.md).
 
 ### Phase 03 — Radial picker
 - [ ] Build the wheel around the pointer, with input-specific choices and a central hover label.
