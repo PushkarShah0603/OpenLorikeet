@@ -70,8 +70,17 @@ public struct ConversionResult: Sendable {
     }
 }
 
+public enum EngineAvailability: Equatable, Sendable {
+    case ready
+    case unavailable(String)
+}
+
 public protocol ConversionEngine: Sendable {
     var identifier: String { get }
+    var availability: EngineAvailability { get }
     func supports(source: FileFormat, target: FileFormat) -> Bool
-    func convert(_ request: ConversionRequest) async throws -> ConversionResult
+    /// Write only to the supplied staging URL; honor cancellation in long-running work.
+    func convert(_ request: ConversionRequest, to stagingURL: URL) async throws
+    /// Decode/inspect the output for this format; existence alone is not validation.
+    func validate(output: URL, format: FileFormat) throws
 }

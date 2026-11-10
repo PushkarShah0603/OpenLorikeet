@@ -11,6 +11,12 @@ final class DragMonitor {
     private var trigger = DragTrigger()
     private let pasteboard = NSPasteboard(name: .drag)
     private let target = DropTargetController()
+    private let queue: ConversionQueue
+
+    init(registry: EngineRegistry = EngineRegistry()) {
+        queue = ConversionQueue(registry: registry)
+        target.registry = registry
+    }
     private var cachedGeneration: Int?
     private var cachedURLs: [URL] = []
 
@@ -38,8 +44,10 @@ final class DragMonitor {
             }
         }
         target.onDrop = { [weak self] requests in
-            self?.trigger.cancel()
-            self?.target.showReceipt(requests: requests)
+            guard let self else { return }
+            self.trigger.cancel()
+            self.target.showReceipt(requests: requests)
+            Task { await self.queue.submit(requests) }
         }
         target.onCancel = { [weak self] in self?.cancel() }
     }
@@ -52,6 +60,11 @@ final class DragMonitor {
         escapeMonitor = nil
         localMonitor = nil
         cancel()
+    }
+
+    func cancelJobsAndWait() async {
+        await queue.cancelAll()
+        await queue.waitUntilIdle()
     }
 
     private func cancel() {

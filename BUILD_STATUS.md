@@ -39,6 +39,15 @@ Implemented: input-specific planned choices, mixed-input intersection, radial ho
 
 Verified: build/signature checks plus all previous checks. New checks cover contextual and unknown-input choices, changed-payload rejection, repeated drop rejection, batch requests, clockwise segment mapping, center/outside/gap rejection, single/empty wheels, small screens, and negative display coordinates.
 
-Pending: visual review and live drag/drop on Desktop/Finder, including timing and permissions. Phase 2's graphical gate remains open; Phase 3 was implemented provisionally after the user's next-phase instruction. Planned targets must become engine-backed available routes in Phase 4.
+Pending: visual review and live drag/drop on Desktop/Finder, including timing and permissions. Phase 2's graphical gate remains open; Phase 3 was implemented provisionally after the user's next-phase instruction. Phase 4 connects the picker to engine availability.
 
 Conversion engines and mascot animations are not active yet.
+
+
+## Phase 4 conversion workers
+
+The picker and queue share the engine registry. Jobs run with bounded concurrency, validate a staged output, and publish a unique sibling copy using an atomic hard link. This publication method requires a volume that supports hard links. Each engine currently produces one file per request.
+
+The subprocess runner passes argument arrays directly and polls `waitpid` for exit status. On cancellation or timeout it signals the child process group and reaps the leader. This replaces the Foundation process wait that intermittently stalled during testing. In-process engines must cooperate with task cancellation.
+
+Automated checks cover fixture conversions, missing engines and inputs, invalid outputs, duplicate jobs, concurrent name collisions, cleanup, timeouts, and cancellation. Real subprocess checks exercise literal arguments, nonzero exits, timeouts, and cancellation. The default registry is empty until Phase 5 adds a document engine. Graphical acceptance remains pending.

@@ -1,6 +1,6 @@
 # OpenLorikeet — Phased Implementation Plan
 
-Status: Phase 01 foundation and Phase 02–03 interaction prototypes implemented; graphical acceptance remains pending. Complete each phase’s checks before marking it done.
+Status: Phases 01–04 implemented. Graphical acceptance remains pending. Complete each phase’s checks before marking it done.
 
 ## Product agreement
 - Local macOS background utility; no dashboard or main application window.
@@ -50,14 +50,16 @@ Build and automated state checks pass. Graphical acceptance is still pending; se
 - [x] Implement display-aware frame clamping; automated checks cover negative screen origins and small displays.
 **Done when:** the chosen file and output format reach the conversion core exactly once.
 
-Automated checks verify exact-once request capture and geometry; live drag delivery and appearance remain pending. This is a preview-only prototype authorized after Phase 2, not a claim that its graphical feasibility gate passed. Replace planned choices with engine-backed availability in Phase 04.
+Automated checks verify exact-once request capture and geometry; live drag delivery and appearance remain pending. This is a preview-only prototype authorized after Phase 2, not a claim that its graphical feasibility gate passed. Phase 04 connects the picker to engine availability.
 
 ### Phase 04 — Conversion registry and workers
-- [ ] Define one request/result interface and one registry for supported routes and engine readiness.
-- [ ] Add a background queue, bounded concurrency, temporary workspaces, timeouts, and cancellation.
-- [ ] Reserve unique output paths, verify generated files, and publish completed copies safely.
-- [ ] Invoke external tools with argument arrays; collect useful errors and clean temporary files.
+- [x] Define one request/result interface and one registry for supported routes and engine readiness.
+- [x] Add a background queue, bounded concurrency, temporary workspaces, timeouts, and cancellation.
+- [x] Reserve unique output paths, verify generated files, and publish completed copies safely.
+- [x] Invoke external tools with argument arrays; collect useful errors and clean temporary files.
 **Done when:** success, missing-engine, damaged-input, timeout, and filename-collision cases behave correctly.
+
+Fixture engines and real subprocess checks verify the worker paths. Phase 05 will register the first document engine.
 
 ### Phase 05 — DOCX conversion
 - [ ] Integrate a local LibreOffice adapter, using isolated profiles for conversion jobs.

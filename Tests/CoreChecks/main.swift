@@ -87,3 +87,110 @@ for screen in [CGRect(x: -1920, y: 0, width: 1920, height: 1080), CGRect(x: 0, y
     }
 }
 print("PASS: contextual choices, exact-once request capture, radial hit testing, center/gap rejection, and display placement")
+
+actor ConcurrencyProbe {
+    var current = 0
+    var maximum = 0
+    func enter() { current += 1; maximum = max(maximum, current) }
+    func leave() { current -= 1 }
+}
+struct FixtureEngine: ConversionEngine {
+    let identifier = "fixture-only"
+    var availability: EngineAvailability = .ready
+    var delay: Duration = .milliseconds(20)
+    var empty = false
+    var invalid = false
+    let probe: ConcurrencyProbe
+    func supports(source: FileFormat, target: FileFormat) -> Bool { source == .txt && target == .html }
+    func convert(_ request: ConversionRequest, to stagingURL: URL) async throws {
+        await probe.enter()
+        do {
+            try await Task.sleep(for: delay)
+            try Task.checkCancellation()
+            try Data((empty ? "" : "<html>fixture</html>").utf8).write(to: stagingURL)
+            await probe.leave()
+        } catch { await probe.leave(); throw error }
+    }
+    func validate(output: URL, format: FileFormat) throws {
+        guard !invalid, try String(contentsOf: output, encoding: .utf8) == "<html>fixture</html>" else { throw WorkerError.invalidOutput }
+    }
+}
+let fm = FileManager.default
+let sandbox = fm.temporaryDirectory.appendingPathComponent("lorikeet-checks-\(UUID())", isDirectory: true)
+try fm.createDirectory(at: sandbox, withIntermediateDirectories: true)
+defer { try? fm.removeItem(at: sandbox) }
+let input = sandbox.appendingPathComponent("source with spaces.txt")
+try Data("original".utf8).write(to: input)
+let probe = ConcurrencyProbe()
+let fixture = FixtureEngine(probe: probe)
+let registry = EngineRegistry(engines: [fixture])
+check(registry.targets(for: [input]) == [.html], "Only ready engine-backed routes offered")
+check(EngineRegistry().targets(for: [input]).isEmpty, "No engines means no advertised conversions")
+let unavailable = EngineRegistry(engines: [FixtureEngine(availability: .unavailable("Missing tool"), probe: probe)])
+check(unavailable.targets(for: [input]).isEmpty, "Unavailable engine hidden")
+check(unavailable.unavailableReasons(source: .txt, target: .html).count == 1, "Missing engine reason retained")
+let existing = sandbox.appendingPathComponent("source with spaces.html")
+try Data("existing".utf8).write(to: existing)
+let queue = ConversionQueue(registry: registry, concurrency: 2)
+let jobs = try (0..<5).map { _ in try ConversionRequest(source: input, targetFormat: .html) }
+await queue.submit(jobs + [jobs[0]])
+await queue.waitUntilIdle()
+var outputs = Set<URL>()
+for job in jobs {
+    guard case .succeeded(let url) = await queue.state(for: job.id) else { fatalError("Expected fixture success") }
+    check(outputs.insert(url).inserted, "Overlapping jobs reserve distinct outputs")
+}
+let peak = await probe.maximum
+check(peak == 2, "Queue runs concurrently within configured bound")
+check(try String(contentsOf: input, encoding: .utf8) == "original", "Original preserved")
+check(try String(contentsOf: existing, encoding: .utf8) == "existing", "Existing output preserved")
+let cancelQueue = ConversionQueue(registry: EngineRegistry(engines: [FixtureEngine(delay: .seconds(5), probe: probe)]), concurrency: 1)
+let cancelled = try (0..<2).map { _ in try ConversionRequest(source: input, targetFormat: .html) }
+await cancelQueue.submit(cancelled)
+for _ in 0..<100 {
+    if await probe.current > 0 { break }
+    try await Task.sleep(for: .milliseconds(2))
+}
+check(await probe.current > 0, "Fixture started before running-job cancellation")
+await cancelQueue.cancel(cancelled[1].id)
+await cancelQueue.cancel(cancelled[0].id)
+await cancelQueue.waitUntilIdle()
+for job in cancelled { check(await cancelQueue.state(for: job.id) == .cancelled, "Queued and active cancellation") }
+for bad in [FixtureEngine(empty: true, probe: probe), FixtureEngine(invalid: true, probe: probe), FixtureEngine(delay: .seconds(5), probe: probe)] {
+    let q = ConversionQueue(registry: EngineRegistry(engines: [bad]), timeout: .milliseconds(100))
+    let job = try ConversionRequest(source: input, targetFormat: .html)
+    await q.submit([job]); await q.waitUntilIdle()
+    guard case .failed = await q.state(for: job.id) else { fatalError("Expected validation/timeout failure") }
+}
+let missing = try ConversionRequest(source: input, targetFormat: .pdf)
+let missingInput = try ConversionRequest(source: sandbox.appendingPathComponent("missing.txt"), targetFormat: .html)
+await queue.submit([missing, missingInput])
+await queue.waitUntilIdle()
+guard case .failed = await queue.state(for: missingInput.id) else { fatalError("Missing source must fail") }
+guard case .failed = await queue.state(for: missing.id) else { fatalError("Missing route must fail") }
+check(try fm.contentsOfDirectory(atPath: sandbox.path).allSatisfy { !$0.hasPrefix(".openlorikeet-") }, "Workspaces cleaned after success/failure/cancellation")
+let literal = "spaces ' and $(literal) ; untouched"
+let result = try await ProcessRunner.run(executable: URL(fileURLWithPath: "/usr/bin/printf"), arguments: ["%s", literal], directory: sandbox)
+check(result.stdout == literal, "Process arguments passed literally without shell expansion")
+do {
+    _ = try await ProcessRunner.run(executable: URL(fileURLWithPath: "/bin/sleep"), arguments: ["5"], directory: sandbox, timeout: .milliseconds(60))
+    fatalError("Expected process timeout")
+} catch WorkerError.timedOut {}
+check(try fm.contentsOfDirectory(atPath: sandbox.path).allSatisfy { !$0.hasPrefix("process-") }, "Process logs cleaned")
+print("PASS: engine readiness, bounded queue, exact-once jobs, collision-safe outputs, validation, cancellation, timeout, cleanup, and literal process arguments")
+
+let stopped = ConversionQueue(registry: EngineRegistry(engines: [FixtureEngine(delay: .seconds(5), probe: probe)]), concurrency: 1)
+let stopJobs = try (0..<3).map { _ in try ConversionRequest(source: input, targetFormat: .html) }
+await stopped.submit(stopJobs); await stopped.cancelAll(); await stopped.waitUntilIdle()
+for job in stopJobs { check(await stopped.state(for: job.id) == .cancelled, "Shutdown cancels all jobs") }
+let processTask = Task {
+    try await ProcessRunner.run(executable: URL(fileURLWithPath: "/bin/sleep"), arguments: ["5"], directory: sandbox)
+}
+try await Task.sleep(for: .milliseconds(50))
+processTask.cancel()
+do { _ = try await processTask.value; fatalError("Expected cancelled process") } catch is CancellationError {}
+do {
+    _ = try await ProcessRunner.run(executable: URL(fileURLWithPath: "/usr/bin/false"), arguments: [], directory: sandbox)
+    fatalError("Expected nonzero process failure")
+} catch ProcessFailure.failed(let code, _) { check(code != 0, "Nonzero exit retained") }
+print("PASS: in-flight cancellation, shutdown drain, process cancellation, and nonzero exit errors")

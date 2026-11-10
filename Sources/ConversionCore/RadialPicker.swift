@@ -33,9 +33,9 @@ public struct PickerSession: Sendable {
     public let targets: [FileFormat]
     public private(set) var consumed = false
 
-    public init(sources: [URL]) {
+    public init(sources: [URL], targets: [FileFormat]? = nil) {
         self.sources = sources
-        targets = PlannedChoices.commonTargets(for: sources)
+        self.targets = targets ?? PlannedChoices.commonTargets(for: sources)
     }
 
     /// Capture a drop once, only if the source set still matches the active drag.

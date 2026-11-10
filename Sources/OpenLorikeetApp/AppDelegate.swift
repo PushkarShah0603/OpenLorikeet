@@ -26,6 +26,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        dragMonitor.stop()
+        Task {
+            await dragMonitor.cancelJobsAndWait()
+            sender.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         dragMonitor.stop()
     }
@@ -37,14 +46,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             image?.isTemplate = true
             button.image = image
             if image == nil { button.title = "OL" }
-            button.toolTip = "OpenLorikeet — radial picker preview"
+            button.toolTip = "OpenLorikeet — conversion engine foundation"
         }
 
         let menu = NSMenu()
         let title = NSMenuItem(title: "OpenLorikeet", action: nil, keyEquivalent: "")
         title.isEnabled = false
         menu.addItem(title)
-        let status = NSMenuItem(title: "Shift-drag to preview planned formats", action: nil, keyEquivalent: "")
+        let status = NSMenuItem(title: "No conversion engines installed yet", action: nil, keyEquivalent: "")
         status.isEnabled = false
         menu.addItem(status)
         menu.addItem(.separator())

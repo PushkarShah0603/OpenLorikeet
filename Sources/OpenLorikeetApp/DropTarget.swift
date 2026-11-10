@@ -3,6 +3,7 @@ import ConversionCore
 
 @MainActor
 final class DropTargetController {
+    var registry = EngineRegistry()
     var onDrop: (([ConversionRequest]) -> Void)?
     var onCancel: (() -> Void)?
     private var panel: NSPanel?
@@ -18,7 +19,7 @@ final class DropTargetController {
         let screen = NSScreen.screens.first { $0.frame.contains(point) } ?? NSScreen.main
         let visible = screen?.visibleFrame ?? NSRect(x: point.x - 200, y: point.y - 200, width: 400, height: 400)
         panel.setFrame(RadialGeometry.frame(near: point, in: visible), display: false)
-        view.configure(urls: urls)
+        view.configure(urls: urls, targets: registry.targets(for: urls))
         panel.orderFrontRegardless()
     }
 
@@ -83,8 +84,8 @@ private final class RadialDropView: NSView {
     }
     required init?(coder: NSCoder) { nil }
 
-    func configure(urls: [URL]) {
-        session = PickerSession(sources: urls)
+    func configure(urls: [URL], targets: [FileFormat]) {
+        session = PickerSession(sources: urls, targets: targets)
         receipt = nil
         selected = nil
         needsDisplay = true
@@ -92,7 +93,7 @@ private final class RadialDropView: NSView {
 
     private func updateAccessibility() {
         let label = selected.map { session.targets[$0].fileExtension.uppercased() } ?? "Choose a planned format"
-        setAccessibilityLabel("OpenLorikeet preview only. \(label). No conversion engines connected.")
+        setAccessibilityLabel("OpenLorikeet. \(label).")
     }
 
     override func draw(_ dirtyRect: NSRect) {
@@ -124,10 +125,10 @@ private final class RadialDropView: NSView {
         NSColor(calibratedWhite: 0.08, alpha: 0.98).setFill()
         NSBezierPath(ovalIn: disk).fill()
         let title = receipt ?? selected.map { session.targets[$0].fileExtension.uppercased() }
-            ?? (n == 0 ? "No formats" : "Choose format")
+            ?? (n == 0 ? "No engines" : "Choose format")
         drawCentered(title, at: CGPoint(x: g.center.x, y: g.center.y + 12), size: 13, color: .white)
-        drawCentered(receipt == nil ? "PREVIEW ONLY" : "Choice captured", at: CGPoint(x: g.center.x, y: g.center.y - 8), size: 10, color: .systemYellow)
-        drawCentered("No files changed", at: CGPoint(x: g.center.x, y: g.center.y - 25), size: 9, color: .lightGray)
+        drawCentered(receipt == nil ? "Choose output" : "Queued", at: CGPoint(x: g.center.x, y: g.center.y - 8), size: 10, color: .systemYellow)
+        drawCentered(receipt == nil ? (n == 0 ? "Engines required" : "Drop on a format") : "Processing pending", at: CGPoint(x: g.center.x, y: g.center.y - 25), size: 9, color: .lightGray)
     }
 
     private func drawCentered(_ text: String, at point: CGPoint, size: Double, color: NSColor) {
