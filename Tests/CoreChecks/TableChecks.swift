@@ -9,7 +9,7 @@ func checkTableRoutes() async throws {
     defer { try? fm.removeItem(at: folder) }
     let source = folder.appendingPathComponent("Wide table.csv")
     let header = "Identifier,Long ID,Name,Details,Formula,City,Region,Last column"
-    let data = "000123,9999999999999999999,\"café, quoted\",\"First line\nSecond line\",=1+2,Ahmedabad,Gujarat,Final value"
+    let data = "000123,9999999999999999999,\"café, quoted\",\"First line\r\nSecond line\",=1+2,Ahmedabad,Gujarat,Final value _x0041_"
     try (header + "\r\n" + Array(repeating: data, count: 58).joined(separator: "\r\n") + "\r\n")
         .write(to: source, atomically: true, encoding: .utf8)
     let queue = ConversionQueue(registry: .local())

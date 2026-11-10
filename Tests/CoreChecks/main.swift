@@ -98,6 +98,7 @@ struct FixtureEngine: ConversionEngine {
     let identifier = "fixture-only"
     var availability: EngineAvailability = .ready
     var delay: Duration = .milliseconds(20)
+    var validationDelay: Duration = .zero
     var empty = false
     var invalid = false
     let probe: ConcurrencyProbe
@@ -111,7 +112,8 @@ struct FixtureEngine: ConversionEngine {
             await probe.leave()
         } catch { await probe.leave(); throw error }
     }
-    func validate(output: URL, format: FileFormat) throws {
+    func validate(output: URL, format: FileFormat) async throws {
+        try await Task.sleep(for: validationDelay)
         guard !invalid, try String(contentsOf: output, encoding: .utf8) == "<html>fixture</html>" else { throw WorkerError.invalidOutput }
     }
 }
@@ -156,7 +158,7 @@ await cancelQueue.cancel(cancelled[1].id)
 await cancelQueue.cancel(cancelled[0].id)
 await cancelQueue.waitUntilIdle()
 for job in cancelled { check(await cancelQueue.state(for: job.id) == .cancelled, "Queued and active cancellation") }
-for bad in [FixtureEngine(empty: true, probe: probe), FixtureEngine(invalid: true, probe: probe), FixtureEngine(delay: .seconds(5), probe: probe)] {
+for bad in [FixtureEngine(empty: true, probe: probe), FixtureEngine(invalid: true, probe: probe), FixtureEngine(delay: .seconds(5), probe: probe), FixtureEngine(validationDelay: .seconds(5), probe: probe)] {
     let q = ConversionQueue(registry: EngineRegistry(engines: [bad]), timeout: .milliseconds(100))
     let job = try ConversionRequest(source: input, targetFormat: .html)
     await q.submit([job]); await q.waitUntilIdle()
@@ -183,6 +185,17 @@ let stopped = ConversionQueue(registry: EngineRegistry(engines: [FixtureEngine(d
 let stopJobs = try (0..<3).map { _ in try ConversionRequest(source: input, targetFormat: .html) }
 await stopped.submit(stopJobs); await stopped.cancelAll(); await stopped.waitUntilIdle()
 for job in stopJobs { check(await stopped.state(for: job.id) == .cancelled, "Shutdown cancels all jobs") }
+await stopped.shutdown()
+let late = try ConversionRequest(source: input, targetFormat: .html)
+await stopped.submit([late])
+check(await stopped.state(for: late.id) == .cancelled, "Drops arriving after shutdown reach a terminal state")
+let longestInput = sandbox.appendingPathComponent(String(repeating: "a", count: 251) + ".txt")
+try Data("original".utf8).write(to: longestInput)
+let longJob = try ConversionRequest(source: longestInput, targetFormat: .html)
+await queue.submit([longJob])
+await queue.waitUntilIdle()
+guard case .succeeded(let longOutput) = await queue.state(for: longJob.id) else { fatalError("Long output name failed") }
+check(longOutput.lastPathComponent.utf8.count <= 255, "Output names respect the volume limit")
 let processTask = Task {
     try await ProcessRunner.run(executable: URL(fileURLWithPath: "/bin/sleep"), arguments: ["5"], directory: sandbox)
 }

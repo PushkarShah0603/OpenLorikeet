@@ -24,6 +24,10 @@ public enum ProcessRunner {
                            timeout: Duration = .seconds(120),
                            outputFile: URL? = nil, outputLimit: Int = 16 * 1024 * 1024) async throws -> ProcessOutput {
         try Task.checkCancellation()
+        guard executable.isFileURL, directory.isFileURL,
+              !([executable.path, directory.path] + arguments).contains(where: { $0.utf8.contains(0) }) else {
+            throw WorkerError.invalidInput
+        }
         let fm = FileManager.default
         let logs = directory.appendingPathComponent("process-\(UUID().uuidString)", isDirectory: true)
         try fm.createDirectory(at: logs, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
@@ -58,6 +62,7 @@ public enum ProcessRunner {
             await Task.detached { await stopAndReap(pid) }.value
             throw error
         }
+        try Task.checkCancellation()
         if outputIsTooLarge() { throw ProcessFailure.outputTooLarge }
         func read(_ url: URL) throws -> String {
             let handle = try FileHandle(forReadingFrom: url)

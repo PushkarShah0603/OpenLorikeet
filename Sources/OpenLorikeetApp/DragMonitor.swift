@@ -15,6 +15,7 @@ final class DragMonitor {
     private let feedback = ConversionFeedback()
     private var tracked: [ConversionRequest] = []
     private var trackingTask: Task<Void, Never>?
+    private var isStopping = false
 
     init(registry: EngineRegistry = EngineRegistry()) {
         queue = ConversionQueue(registry: registry)
@@ -24,7 +25,7 @@ final class DragMonitor {
     private var cachedURLs: [URL] = []
 
     func start() {
-        guard timer == nil else { return }
+        guard timer == nil, !isStopping else { return }
         // Prime the baseline before accepting a gesture.
         tick()
         let timer = Timer(timeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
@@ -47,11 +48,12 @@ final class DragMonitor {
             }
         }
         target.onDrop = { [weak self] requests in
-            guard let self else { return }
+            guard let self, !self.isStopping else { return }
             self.trigger.cancel()
             self.target.hide()
             Task {
                 await self.queue.submit(requests)
+                guard !self.isStopping else { return }
                 self.tracked.append(contentsOf: requests)
                 self.trackJobs()
             }
@@ -68,6 +70,7 @@ final class DragMonitor {
     }
 
     func stop() {
+        isStopping = true
         timer?.invalidate()
         timer = nil
         if let escapeMonitor { NSEvent.removeMonitor(escapeMonitor) }
@@ -136,7 +139,10 @@ final class DragMonitor {
             if tracked.isEmpty { feedback.hide() }
             // Let AppKit finish performDragOperation before ordering out the panel.
             if !pressed {
-                DispatchQueue.main.async { [weak self] in self?.target.hide() }
+                DispatchQueue.main.async { [weak self] in
+                    guard let self, !self.trigger.isVisible else { return }
+                    self.target.hide()
+                }
             } else {
                 target.hide()
             }

@@ -41,10 +41,9 @@ public actor ConversionQueue {
 
     /// Repeated submission of the same request ID cannot create duplicate work.
     public func submit(_ requests: [ConversionRequest]) {
-        guard accepting else { return }
         for request in requests where states[request.id] == nil {
-            states[request.id] = .queued
-            pending.append(request)
+            states[request.id] = accepting ? .queued : .cancelled
+            if accepting { pending.append(request) }
         }
         pump()
     }
@@ -133,29 +132,41 @@ public actor ConversionQueue {
         defer { try? fm.removeItem(at: workspace) }
         let folder = engine.producesFolder(for: request)
         let staging = workspace.appendingPathComponent(folder ? "output" : "output.\(request.targetFormat.fileExtension)", isDirectory: folder)
+        let deadline = ContinuousClock.now.advanced(by: timeout)
         try await withThrowingTaskGroup(of: Void.self) { group in
-            group.addTask { try await engine.convert(request, to: staging) }
             group.addTask {
-                try await Task.sleep(for: timeout)
+                try await engine.convert(request, to: staging)
+                try Task.checkCancellation()
+                var metadata = stat()
+                guard lstat(staging.path, &metadata) == 0,
+                      metadata.st_mode & S_IFMT == (folder ? S_IFDIR : S_IFREG),
+                      folder || metadata.st_size > 0 else { throw WorkerError.invalidOutput }
+                try await engine.validate(output: staging, format: request.targetFormat)
+            }
+            group.addTask {
+                try await ContinuousClock().sleep(until: deadline)
                 throw WorkerError.timedOut
             }
             defer { group.cancelAll() }
             _ = try await group.next()
         }
         try Task.checkCancellation()
-        var metadata = stat()
-        guard lstat(staging.path, &metadata) == 0,
-              metadata.st_mode & S_IFMT == (folder ? S_IFDIR : S_IFREG), metadata.st_size > 0 else { throw WorkerError.invalidOutput }
-        try await engine.validate(output: staging, format: request.targetFormat)
-        try Task.checkCancellation()
+        guard ContinuousClock.now < deadline else { throw WorkerError.timedOut }
         let sourceName = request.source.deletingPathExtension().lastPathComponent
         let actionSuffix = request.choice.outputSuffix
         let base = sourceName + (folder && actionSuffix.isEmpty ? " (\(request.targetFormat.fileExtension.uppercased()))" : actionSuffix)
+        let nameLimit = pathconf(directory.path, _PC_NAME_MAX)
+        let limit = nameLimit > 0 ? Int(nameLimit) : 255
         for index in 1...10_000 {
             try Task.checkCancellation()
+            guard ContinuousClock.now < deadline else { throw WorkerError.timedOut }
             let suffix = index == 1 ? "" : " (\(index))"
             let extensionSuffix = folder ? "" : ".\(request.targetFormat.fileExtension)"
-            let destination = directory.appendingPathComponent(base + suffix + extensionSuffix, isDirectory: folder)
+            var stem = base
+            while stem.utf8.count + suffix.utf8.count + extensionSuffix.utf8.count > limit, !stem.isEmpty {
+                stem.removeLast()
+            }
+            let destination = directory.appendingPathComponent(stem + suffix + extensionSuffix, isDirectory: folder)
             if renamex_np(staging.path, destination.path, UInt32(RENAME_EXCL)) == 0 { return destination }
             let code = errno
             if code != EEXIST { throw WorkerError.publishFailed(code) }

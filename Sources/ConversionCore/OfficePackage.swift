@@ -33,7 +33,9 @@ enum OfficePackage {
     }
 
     static func xml(_ data: Data) throws -> XMLDocument {
-        try XMLDocument(data: data, options: [.nodeLoadExternalEntitiesNever])
+        let document = try XMLDocument(data: data, options: [.nodeLoadExternalEntitiesNever])
+        guard document.dtd == nil else { throw WorkerError.invalidInput }
+        return document
     }
 
     static func escape(_ value: String) -> String {

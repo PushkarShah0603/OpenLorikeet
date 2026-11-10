@@ -27,16 +27,18 @@ public struct PDFEngine: ConversionEngine {
     public func convert(_ request: ConversionRequest, to output: URL) async throws {
         if request.choice == .mergePDF {
             let combined = PDFDocument()
+            var originals: [PDFDocument] = []
             for source in request.inputs {
                 let document = try load(source)
                 guard combined.pageCount + document.pageCount <= 500 else { throw WorkerError.engineUnavailable("The merged PDF would exceed 500 pages.") }
+                originals.append(document)
                 for index in 0..<document.pageCount {
                     try Task.checkCancellation()
                     guard let page = document.page(at: index)?.copy() as? PDFPage else { throw WorkerError.invalidInput }
                     combined.insert(page, at: combined.pageCount)
                 }
             }
-            guard combined.write(to: output) else { throw WorkerError.invalidOutput }
+            guard withExtendedLifetime(originals, { combined.write(to: output) }) else { throw WorkerError.invalidOutput }
             return
         }
 
@@ -52,7 +54,7 @@ public struct PDFEngine: ConversionEngine {
                     let single = PDFDocument()
                     guard let copy = page.copy() as? PDFPage else { throw WorkerError.invalidInput }
                     single.insert(copy, at: 0)
-                    guard single.write(to: destination) else { throw WorkerError.invalidOutput }
+                    guard withExtendedLifetime(document, { single.write(to: destination) }) else { throw WorkerError.invalidOutput }
                 } else {
                     let rendered = try rasterize(page, maximum: 2_400)
                     try ImageEngine.encode(rendered, format: request.targetFormat, quality: 0.9).write(to: destination)
@@ -100,28 +102,35 @@ public struct PDFEngine: ConversionEngine {
     }
 
     private func load(_ url: URL) throws -> PDFDocument {
-        guard let document = PDFDocument(url: url), document.pageCount > 0 else { throw WorkerError.invalidInput }
+        guard let document = PDFDocument(url: url) else { throw WorkerError.invalidInput }
         guard !document.isLocked, document.allowsCopying else {
             throw WorkerError.engineUnavailable("Unlock the PDF and allow copying before converting it.")
         }
+        guard document.pageCount > 0 else { throw WorkerError.invalidInput }
         guard document.pageCount <= 500 else { throw WorkerError.engineUnavailable("This operation supports PDFs up to 500 pages.") }
         return document
     }
 
     private func rasterize(_ page: PDFPage, maximum: Int) throws -> CGImage {
-        let box = page.bounds(for: .cropBox)
-        let maxDimension = max(box.width, box.height)
-        guard box.width > 0, box.height > 0, maxDimension.isFinite else { throw WorkerError.invalidInput }
+        guard let reference = page.pageRef else { throw WorkerError.invalidInput }
+        let box = reference.getBoxRect(.cropBox)
+        let rotated = reference.rotationAngle % 180 != 0
+        let widthInPoints = rotated ? box.height : box.width
+        let heightInPoints = rotated ? box.width : box.height
+        let maxDimension = max(widthInPoints, heightInPoints)
+        guard widthInPoints > 0, heightInPoints > 0, maxDimension.isFinite else { throw WorkerError.invalidInput }
         let scale = min(3, Double(maximum) / maxDimension)
-        let width = max(1, Int((box.width * scale).rounded(.up)))
-        let height = max(1, Int((box.height * scale).rounded(.up)))
+        let width = max(1, Int((widthInPoints * scale).rounded(.up)))
+        let height = max(1, Int((heightInPoints * scale).rounded(.up)))
         guard let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8,
                                       bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!,
                                       bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else { throw WorkerError.invalidOutput }
+        let bounds = CGRect(x: 0, y: 0, width: width, height: height)
         context.setFillColor(CGColor(gray: 1, alpha: 1))
-        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
-        context.scaleBy(x: scale, y: scale)
-        page.draw(with: .cropBox, to: context)
+        context.fill(bounds)
+        context.concatenate(reference.getDrawingTransform(.cropBox, rect: bounds, rotate: 0, preserveAspectRatio: true))
+        context.clip(to: box)
+        context.drawPDFPage(reference)
         guard let image = context.makeImage() else { throw WorkerError.invalidOutput }
         return image
     }

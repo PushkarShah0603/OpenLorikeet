@@ -25,6 +25,9 @@ public struct WordTextEngine: ConversionEngine {
                 }
             }.joined()
         }
+        guard lines.contains(where: { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) else {
+            throw WorkerError.engineUnavailable("The Word document contains no extractable body text.")
+        }
         let result: String
         if request.targetFormat == .html {
             let body = lines.map { "<p>\(OfficePackage.escape($0).replacingOccurrences(of: "\n", with: "<br>"))</p>" }.joined(separator: "\n")

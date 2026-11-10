@@ -50,7 +50,7 @@ func checkPDFRoutes() async throws {
     }
     check(files.count == jobs.count, "All PDF operations succeed: \(states)")
     let merged = PDFDocument(url: files[0])
-    check(merged?.pageCount == 3 && merged?.page(at: 2)?.string?.contains("Page three appended") == true, "PDF merge preserves order")
+    check(merged?.pageCount == 3 && merged?.page(at: 0)?.string?.contains("Page one editable text") == true && merged?.page(at: 1)?.string?.contains("Oranges") == true && merged?.page(at: 2)?.string?.contains("Page three appended") == true, "PDF merge preserves order")
     let splits = try fm.contentsOfDirectory(at: files[1], includingPropertiesForKeys: nil)
     check(splits.count == 2 && splits.allSatisfy { PDFDocument(url: $0)?.pageCount == 1 }, "PDF split writes one document per page")
     let images = try fm.contentsOfDirectory(at: files[2], includingPropertiesForKeys: nil)
@@ -60,6 +60,35 @@ func checkPDFRoutes() async throws {
     check(word.stdout.contains("<w:t xml:space=\"preserve\">Page one editable text"), "PDF text becomes editable Word runs")
     check(word.stdout.contains("<w:tbl>"), "Consistently separated PDF columns become an editable table")
 
+    let croppedURL = folder.appendingPathComponent("Rotated crop.pdf")
+    // Encode the boxes and rotation directly so the fixture is independent of
+    // PDFKit's page editing and serialization behavior.
+    let content = "BT /F1 18 Tf 60 700 Td (Visible inside the crop) Tj ET"
+    let objects = [
+        "<< /Type /Catalog /Pages 2 0 R >>",
+        "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /CropBox [52 600 552 780] /Rotate 90 /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+        "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        "<< /Length \(content.utf8.count) >>\nstream\n\(content)\nendstream",
+    ]
+    var croppedBytes = Data("%PDF-1.4\n".utf8)
+    var offsets: [Int] = []
+    for (index, object) in objects.enumerated() {
+        offsets.append(croppedBytes.count)
+        croppedBytes.append(Data("\(index + 1) 0 obj\n\(object)\nendobj\n".utf8))
+    }
+    let xref = croppedBytes.count
+    let entries = offsets.map { String(format: "%010d 00000 n \n", $0) }.joined()
+    croppedBytes.append(Data("xref\n0 6\n0000000000 65535 f \n\(entries)trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n\(xref)\n%%EOF\n".utf8))
+    try croppedBytes.write(to: croppedURL)
+    let cropJob = try ConversionRequest(source: croppedURL, targetFormat: .png)
+    await queue.submit([cropJob])
+    await queue.waitUntilIdle()
+    guard case .succeeded(let cropFolder) = await queue.state(for: cropJob.id),
+          let imageSource = CGImageSourceCreateWithURL(cropFolder.appendingPathComponent("Page 0001.png") as CFURL, nil),
+          let croppedImage = CGImageSourceCreateImageAtIndex(imageSource, 0, nil) else { fatalError("Rotated PDF export failed") }
+    check(croppedImage.width == 540 && croppedImage.height == 1500, "PDF export uses rotated crop bounds")
+    check((croppedImage.dataProvider?.data as Data?)?.contains(where: { $0 < 128 }) == true, "Cropped page retains rendered text")
     let raster = CGContext(data: nil, width: 1_200, height: 460, bitsPerComponent: 8, bytesPerRow: 0,
                            space: CGColorSpace(name: CGColorSpace.sRGB)!,
                            bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!

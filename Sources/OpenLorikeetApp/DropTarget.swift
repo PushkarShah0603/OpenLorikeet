@@ -85,7 +85,7 @@ private final class RadialDropView: NSView {
     }
 
     private func updateAccessibility() {
-        let label = selected.map { session.choices[$0].label } ?? "Choose a planned format"
+        let label = selected.map { session.choices[$0].label } ?? "Choose an available format"
         setAccessibilityLabel("OpenLorikeet. \(label).")
     }
 

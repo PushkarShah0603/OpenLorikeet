@@ -22,7 +22,7 @@ enum XLSX {
             for (column, field) in row.enumerated() {
                 // String cells preserve identifiers and never create spreadsheet formulas.
                 let reference = columnName(column) + String(rowNumber)
-                cells += "<c r=\"\(reference)\" t=\"inlineStr\"><is><t xml:space=\"preserve\">\(OfficePackage.escape(field))</t></is></c>"
+                cells += "<c r=\"\(reference)\" t=\"inlineStr\"><is><t xml:space=\"preserve\">\(OfficePackage.escape(encodeString(field)))</t></is></c>"
             }
             cells += "</row>"
         }
@@ -61,7 +61,7 @@ enum XLSX {
         if let sharedPart {
             let strings = try await xml(sharedPart)
             shared = try strings.nodes(forXPath: "//*[local-name()='si']").map {
-                try $0.nodes(forXPath: ".//*[local-name()='t' and not(ancestor::*[local-name()='rPh'])]").compactMap(\.stringValue).joined()
+                try $0.nodes(forXPath: ".//*[local-name()='t' and not(ancestor::*[local-name()='rPh'])]").compactMap(\.stringValue).map(decodeString).joined()
             }
         }
         var sheets: [Sheet] = []
@@ -92,11 +92,11 @@ enum XLSX {
                         guard let i = Int(value), shared.indices.contains(i) else { throw WorkerError.invalidInput }
                         text = shared[i]
                     } else if type == "inlineStr" {
-                        text = try cell.nodes(forXPath: ".//*[local-name()='t']").compactMap(\.stringValue).joined()
+                        text = try cell.nodes(forXPath: ".//*[local-name()='t' and not(ancestor::*[local-name()='rPh'])]").compactMap(\.stringValue).map(decodeString).joined()
                     } else if type == "b" {
-                        text = value.isEmpty ? "" : (value == "1" ? "TRUE" : "FALSE")
+                        text = type == "str" ? decodeString(value) : value.isEmpty ? "" : (value == "1" ? "TRUE" : "FALSE")
                     } else {
-                        text = value
+                        text = type == "str" ? decodeString(value) : value
                     }
                     let added = column - values.count + 1
                     cellBudget -= added
@@ -109,6 +109,35 @@ enum XLSX {
             sheets.append(Sheet(name: name, rows: rows))
         }
         return sheets
+    }
+
+    private static let escapedCode = try! NSRegularExpression(pattern: "_x([0-9a-fA-F]{4})_")
+
+    private static func encodeString(_ string: String) -> String {
+        let literal = escapedCode.stringByReplacingMatches(in: string, range: NSRange(string.startIndex..., in: string),
+                                                            withTemplate: "_x005F_x$1_")
+        return literal.unicodeScalars.map { scalar in
+            if scalar.value == 13 || (scalar.value < 32 && scalar.value != 9 && scalar.value != 10)
+                || scalar.value == 0xFFFE || scalar.value == 0xFFFF {
+                return String(format: "_x%04X_", scalar.value)
+            }
+            return String(scalar)
+        }.joined()
+    }
+
+    private static func decodeString(_ string: String) -> String {
+        let utf16 = Array(string.utf16)
+        var decoded: [UInt16] = []
+        var position = 0
+        for match in escapedCode.matches(in: string, range: NSRange(location: 0, length: utf16.count)) {
+            let digits = String(decoding: utf16[match.range(at: 1).location..<NSMaxRange(match.range(at: 1))], as: UTF16.self)
+            guard let code = UInt16(digits, radix: 16) else { continue }
+            decoded.append(contentsOf: utf16[position..<match.range.location])
+            decoded.append(code)
+            position = NSMaxRange(match.range)
+        }
+        decoded.append(contentsOf: utf16[position...])
+        return String(decoding: decoded, as: UTF16.self)
     }
 
     private static func columnName(_ index: Int) -> String {

@@ -12,10 +12,12 @@ final class ConversionFeedback: NSObject {
     private var panel: NSPanel?
     private var dismissTask: Task<Void, Never>?
     private var outputs: [URL] = []
+    private var progressDismissed = false
     private var screen: NSScreen?
     var onCancel: (() -> Void)?
 
     func ready(at point: NSPoint, fileCount: Int, available: Bool) {
+        progressDismissed = false
         screen = NSScreen.screens.first { $0.frame.contains(point) } ?? NSScreen.main
         let heading = available ? "Choose an output format" : "No available formats"
         let detail = available ? "\(fileCount) selected"
@@ -29,11 +31,13 @@ final class ConversionFeedback: NSObject {
     }
 
     func progress(completed: Int, total: Int) {
+        guard !progressDismissed else { return }
         show(title: "Converting \(total) \(total == 1 ? "file" : "files")",
              detail: "\(completed) of \(total) finished", pose: .working, cancellable: true)
     }
 
     func finish(states: [JobState], requests: [ConversionRequest]) {
+        progressDismissed = false
         let urls = states.compactMap { state -> URL? in
             if case .succeeded(let url) = state { return url }
             return nil
@@ -44,7 +48,8 @@ final class ConversionFeedback: NSObject {
         }
         let cancelled = states.filter { $0 == .cancelled }.count
         if let first = failures.first {
-            show(title: "\(urls.count) saved, \(failures.count) failed", detail: first, pose: .failed, outputs: urls)
+            let suffix = cancelled > 0 ? ", \(cancelled) cancelled" : ""
+            show(title: "\(urls.count) saved, \(failures.count) failed" + suffix, detail: first, pose: .failed, outputs: urls)
         } else if cancelled > 0 {
             show(title: "\(cancelled) cancelled", detail: "\(urls.count) converted copies saved",
                  pose: .ready, outputs: urls)
@@ -147,7 +152,10 @@ final class ConversionFeedback: NSObject {
     @objc private func openOutput() { if let first = outputs.first { NSWorkspace.shared.open(first) } }
     @objc private func revealOutputs() { NSWorkspace.shared.activateFileViewerSelecting(outputs) }
     @objc private func cancelJobs() { onCancel?() }
-    @objc private func closePanel() { hide() }
+    @objc private func closePanel() {
+        if !cancelButton.isHidden { progressDismissed = true }
+        hide()
+    }
 }
 
 @MainActor
