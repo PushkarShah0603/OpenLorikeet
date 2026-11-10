@@ -16,7 +16,7 @@ for size in [16, 32, 128, 256, 512] {
             bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true,
             isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0
         ), let context = NSGraphicsContext(bitmapImageRep: bitmap) else {
-            fatalError("Could not allocate placeholder icon")
+            fatalError("Could not allocate app icon")
         }
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = context
@@ -25,7 +25,7 @@ for size in [16, 32, 128, 256, 512] {
         artwork.draw(in: bounds, from: .zero, operation: .copy, fraction: 1)
         NSGraphicsContext.restoreGraphicsState()
         guard let png = bitmap.representation(using: .png, properties: [:]) else {
-            fatalError("Could not render placeholder icon")
+            fatalError("Could not render app icon")
         }
         let suffix = scale == 2 ? "@2x" : ""
         try png.write(to: iconset.appendingPathComponent("icon_\(size)x\(size)\(suffix).png"))

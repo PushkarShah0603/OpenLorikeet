@@ -1,48 +1,86 @@
+<div align="center">
+
+<img src="docs/assets/lorikeet.png" alt="OpenLorikeet app icon" width="112">
+
 # OpenLorikeet
 
-OpenLorikeet is a local macOS file converter. Drag a file from Finder or the Desktop, hold Shift, and drop it on an available format. The lorikeet follows the picker and celebrates after a converted copy is saved beside the original.
+**Convert files from Finder with Shift-drag.**
 
-## Install and try
+macOS 15+ · Native AppKit · Local conversion
 
-Use macOS 15 or newer. The build targets the Mac on which it runs. Build from source with Xcode or Command Line Tools and Swift 6.
+[Format guide](#formats-and-actions) · [Build from source](#build-from-source) · [GitHub Releases](https://github.com/PushkarShah0603/OpenLorikeet/releases)
+
+</div>
+
+OpenLorikeet is a menu bar utility for converting documents, images, and spreadsheets. Start dragging a file in Finder, hold **Shift**, and drop it on an output format. The lorikeet follows the selection and celebrates once a validated copy is saved beside the original.
+
+## How it works
+
+1. Start a drag from Finder or the Desktop. Multi-file selections are supported.
+2. Hold **Shift** to reveal the format wheel. It shows actions shared by the selected files and supported by the installed engines.
+3. Drop onto a segment. Use **Open** or **Show in Finder** from the result panel.
+
+A batch keeps separate results for each file. OpenLorikeet validates each output before saving it and chooses a new name if the destination already exists. The menu bar includes engine status, launch at login, and a feather celebration toggle. Animations respect Reduce Motion.
+
+## Formats and actions
+
+| Input | Actions |
+|---|---|
+| **DOCX** | TXT and text-based HTML. Formatted PDF and ODT with LibreOffice. Markdown and LaTeX with Pandoc |
+| **PDF** | Merge, split, selectable TXT, page images, and editable DOCX reconstruction |
+| **CSV / TSV** | XLSX, paginated PDF, and delimited text conversion |
+| **XLSX** | PDF, or separate CSV and TSV files for each worksheet |
+| **JPG / PNG / HEIC** | Available image formats, PDF, compression, 500 KB target, and 1600 px resize |
+| **JPG / PNG** | Word document with the image embedded |
+| **Markdown** | HTML, DOCX, and LaTeX with Pandoc. PDF with Pandoc and Tectonic |
+| **LaTeX** | Cached offline PDF compilation with Tectonic. Markdown and DOCX with Pandoc |
+
+PDF merge uses the order delivered by Finder. Page, sheet, and document bundle exports create folders. CSV-to-XLSX stores values as strings, preserving leading zeros and long identifiers. XLSX-to-text exports stored formula results and underlying cell values.
+
+PDF-to-Word reconstructs text and simple aligned tables. Complex layouts and illustrations can change or be omitted. OCR uses macOS Vision for image-only pages. HEIC output appears only when the encoder passes a round-trip check.
+
+## Build from source
+
+Requirements are **macOS 15 or newer** and **Swift 6** from Xcode or Command Line Tools.
 
 ```sh
+git clone https://github.com/PushkarShah0603/OpenLorikeet.git
+cd OpenLorikeet
 ./scripts/package.sh
 open dist/OpenLorikeet.app
 ```
 
-The ZIP in `dist/` contains the app for the current architecture. Extract it and move the app to Applications for regular use. The default build uses an ad-hoc signature for local development. The app lives in the menu bar with engine status, launch at login, feather celebrations, and Quit.
+The app and an architecture-specific ZIP are written to `dist/`. The default build uses an ad-hoc signature for local development. Extract the ZIP and move the app to Applications for regular use. For Developer ID signing and notarization, see [Packaging](docs/PACKAGING.md).
 
-## Formats and actions
+### Optional engines
 
-| Source | Available operations |
+Install the tools you need and relaunch OpenLorikeet. The app checks the standard application and package-manager locations.
+
+| Engine | Enables |
 |---|---|
-| DOCX | Text and simple HTML. PDF and ODT with LibreOffice. Markdown and LaTeX with Pandoc |
-| PDF | Selectable text, page images, split, merge, and editable Word reconstruction |
-| CSV and TSV | Delimited text, XLSX, and paginated PDF |
-| XLSX | PDF and one CSV or TSV per worksheet |
-| JPG, PNG, HEIC | Image format conversion when the encoder probe passes, PDF, compression, 500 KB target, and 1600 px resize |
-| JPG and PNG | Embedded image in Word |
-| Markdown | HTML, DOCX, and LaTeX with Pandoc. PDF with Pandoc and Tectonic |
-| LaTeX | Cached offline PDF compilation with Tectonic. DOCX and Markdown with Pandoc |
+| [LibreOffice](https://www.libreoffice.org/download/download-libreoffice/) | Formatted DOCX to PDF and ODT |
+| [Pandoc](https://pandoc.org/installing.html) | Markdown, Word, and LaTeX routes. Use a build with embedded data files for sandboxed DOCX writing |
+| [Tectonic](https://tectonic-typesetting.github.io/) | TeX and Markdown PDF routes. Populate your project’s package cache first |
 
-Mixed selections show shared formats and actions. PDF merge follows the order supplied by Finder. PDF page exports, split PDFs, worksheet exports, and technical document bundles use output folders. Existing files and folders are preserved.
+Tectonic runs with cached resources and shell escape disabled. The Pandoc adapter limits imported image assets to local PNG or JPG files inside the source folder. [Tectonic compile options](https://tectonic-typesetting.github.io/book/latest/v2cli/compile.html) · [Pandoc sandbox documentation](https://pandoc.org/MANUAL.html#option--sandbox)
 
-PDF-to-Word reconstructs text and simple aligned tables. Exact layout, columns, and embedded illustrations can change or be omitted. Vision recognizes image-only pages and flags low-confidence text. Native Word HTML preserves paragraphs and text. For formatted Word export, install LibreOffice. XLSX export uses stored formula results and underlying values, so dates and numbers can differ from formatted Excel display. CSV-to-XLSX stores values as text.
-
-## Optional local engines
-
-Install engines separately, then relaunch OpenLorikeet. The app searches the standard LibreOffice application path and common package-manager binary paths. Engine status is available from the menu bar.
-
-- [LibreOffice](https://www.libreoffice.org/download/download-libreoffice/) for formatted Word PDF and ODT.
-- [Pandoc](https://pandoc.org/installing.html) for Markdown and LaTeX conversion. A build with embedded data files supports sandboxed DOCX writing. Relative PNG and JPG assets inside the source folder are supported by the adapter. [Pandoc sandbox documentation](https://pandoc.org/MANUAL.html#option--sandbox)
-- [Tectonic](https://tectonic-typesetting.github.io/) for PDF compilation. Populate the package cache for your projects separately. OpenLorikeet uses cached files only and disables shell escape. [Tectonic compile options](https://tectonic-typesetting.github.io/book/latest/v2cli/compile.html)
-
-## Verify a build
+## Development and verification
 
 ```sh
 ./scripts/test.sh
+node scripts/check-site.mjs
 ./dist/OpenLorikeet.app/Contents/MacOS/OpenLorikeet --smoke-test
 ```
 
-The smoke test needs a logged-in graphical macOS session. See the [Finder checklist](docs/GESTURE_TESTING.md) and [verification status](BUILD_STATUS.md). Signing and distribution instructions are in [PACKAGING.md](docs/PACKAGING.md).
+The core checks generate their own fixtures. The site checks use Node.js and verify local links and demo behavior. Run the app smoke test in a logged-in graphical macOS session. See [Build status](BUILD_STATUS.md) for verified routes and open checks, and the [Finder checklist](docs/GESTURE_TESTING.md) for manual testing.
+
+- `Sources/ConversionCore` contains the engine registry, queue, converters, and format validation.
+- `Sources/OpenLorikeetApp` contains Finder interaction, the format wheel, and the status panel.
+- `Tests/CoreChecks` contains the conversion and gesture fixtures.
+- `docs/` contains the GitHub Pages site and project guides.
+
+## Publish the project website
+
+The static site is in [`docs/index.html`](docs/index.html). Open that file locally for a preview. After pushing `main`, open the repository’s **Settings → Pages**. Select **Deploy from a branch**, choose **main** and **/docs**, and save. GitHub Pages will publish the site at [pushkarshah0603.github.io/OpenLorikeet](https://pushkarshah0603.github.io/OpenLorikeet/). [GitHub Pages publishing documentation](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site)
+
+The Shift-drag workflow was inspired by [Open Tangerine](https://github.com/sintaxerrorpvtltd/Open-Tangerine).

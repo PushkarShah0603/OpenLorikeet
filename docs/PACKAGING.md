@@ -1,6 +1,6 @@
 # Build and distribution
 
-Run `./scripts/package.sh` on a Mac with Swift 6 and macOS 15 or newer. The script builds the app for the current architecture, creates the icon representations from `Resources/AppIcon.png`, checks the bundle signature, and validates the ZIP. The selected artwork is the second supplied lorikeet variant. The animated companion is drawn with native AppKit shapes.
+Run `./scripts/package.sh` on a Mac with Swift 6 and macOS 15 or newer. The script builds the app for the current architecture, creates the icon representations from `docs/assets/lorikeet.png`, checks the bundle signature, and validates the ZIP. The selected artwork is the second supplied lorikeet variant. The animated companion is drawn with native AppKit shapes.
 
 The default package is ad-hoc signed for local development. LibreOffice, Pandoc, and Tectonic are optional user-installed engines. The package includes the Swift app and icon, with no copies of those executables.
 
