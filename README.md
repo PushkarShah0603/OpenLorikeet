@@ -5,7 +5,7 @@ Your files. A quick shift.
 A native macOS background utility being built for Shift-drag file conversion, a radial format picker, and an animated lorikeet with compact notch feedback.
 
 ## Current status
-The background app, Shift-drag picker, and conversion queue are implemented. The picker lists formats supported by ready engines. Phase 5 will add the first document engine, so the wheel currently displays “No engines.” Desktop and Finder testing is pending. See [gesture behavior and pending checks](docs/GESTURE_TESTING.md) and the [implementation plan](IMPLEMENTATION_PLAN.md).
+Shift-drag shows the ready formats for the selected files. Native routes include DOCX text/HTML and image conversion. Install [LibreOffice](https://www.libreoffice.org/download/download-libreoffice/) for Word PDF and ODT export. A compact status panel shows job progress and provides Open and Show in Finder after a successful save. Desktop and Finder testing is pending. See the [implementation plan](IMPLEMENTATION_PLAN.md).
 
 ## Build and run
 Requires macOS 15 or newer and a Swift 6 toolchain from Xcode or Command Line Tools. No external Swift packages or conversion engines are required for this phase. The build targets the current Mac's architecture.

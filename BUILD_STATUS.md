@@ -51,3 +51,9 @@ The picker and queue share the engine registry. Jobs run with bounded concurrenc
 The subprocess runner passes argument arrays directly and polls `waitpid` for exit status. On cancellation or timeout it signals the child process group and reaps the leader. This replaces the Foundation process wait that intermittently stalled during testing. In-process engines must cooperate with task cancellation.
 
 Automated checks cover fixture conversions, missing engines and inputs, invalid outputs, duplicate jobs, concurrent name collisions, cleanup, timeouts, and cancellation. Real subprocess checks exercise literal arguments, nonzero exits, timeouts, and cancellation. The default registry is empty until Phase 5 adds a document engine. Graphical acceptance remains pending.
+
+## Document, image, and conversion feedback foundation
+
+Native DOCX to TXT and escaped HTML pass fixture checks, including Unicode, tabs, table text, and corrupt input. Native HTML preserves paragraphs and text rather than Word layout. The LibreOffice PDF/ODT adapter uses an isolated profile and checks its outputs. Integration is skipped on this Mac because LibreOffice is absent.
+
+ImageIO routes pass PNG to JPG, PDF, and embedded-image DOCX checks. HEIC encoding fails its round-trip probe in this environment and is hidden. The app builds with a top-edge status panel, result actions, cancellation, and a native animated lorikeet. Live Finder and visual checks remain pending.

@@ -194,3 +194,6 @@ do {
     fatalError("Expected nonzero process failure")
 } catch ProcessFailure.failed(let code, _) { check(code != 0, "Nonzero exit retained") }
 print("PASS: in-flight cancellation, shutdown drain, process cancellation, and nonzero exit errors")
+
+try await checkDocumentRoutes()
+try await checkImageRoutes()

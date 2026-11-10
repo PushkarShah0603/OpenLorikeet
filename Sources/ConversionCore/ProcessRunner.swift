@@ -9,21 +9,32 @@ public struct ProcessOutput: Sendable {
 
 public enum ProcessFailure: Error, LocalizedError {
     case failed(Int32, String)
+    case outputTooLarge
     public var errorDescription: String? {
-        switch self { case .failed(let code, let message): "Converter exited with status \(code): \(message)" }
+        switch self {
+        case .failed(let code, let message): "Converter exited with status \(code): \(message)"
+        case .outputTooLarge: "The converter exceeded its output size limit."
+        }
     }
 }
 
 /// Argument-array execution, bounded diagnostic reads, and no pipe-buffer deadlocks.
 public enum ProcessRunner {
     public static func run(executable: URL, arguments: [String], directory: URL,
-                           timeout: Duration = .seconds(120)) async throws -> ProcessOutput {
+                           timeout: Duration = .seconds(120),
+                           outputFile: URL? = nil, outputLimit: Int = 16 * 1024 * 1024) async throws -> ProcessOutput {
         try Task.checkCancellation()
         let fm = FileManager.default
         let logs = directory.appendingPathComponent("process-\(UUID().uuidString)", isDirectory: true)
         try fm.createDirectory(at: logs, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         defer { try? fm.removeItem(at: logs) }
-        let outURL = logs.appendingPathComponent("stdout"), errURL = logs.appendingPathComponent("stderr")
+        let outURL = outputFile ?? logs.appendingPathComponent("stdout")
+        let errURL = logs.appendingPathComponent("stderr")
+        func outputIsTooLarge() -> Bool {
+            let outSize = (try? fm.attributesOfItem(atPath: outURL.path)[.size] as? Int) ?? 0
+            let errSize = (try? fm.attributesOfItem(atPath: errURL.path)[.size] as? Int) ?? 0
+            return outSize > outputLimit || errSize > 16 * 1024 * 1024
+        }
         let pid = try spawn(executable: executable, arguments: arguments, directory: directory,
                             stdout: outURL, stderr: errURL)
         let deadline = ContinuousClock.now.advanced(by: timeout)
@@ -35,6 +46,7 @@ public enum ProcessRunner {
                     status = exit
                     break
                 }
+                if outputIsTooLarge() { throw ProcessFailure.outputTooLarge }
                 if ContinuousClock.now >= deadline { throw WorkerError.timedOut }
                 try await Task.sleep(for: .milliseconds(20))
             }
@@ -46,12 +58,13 @@ public enum ProcessRunner {
             await Task.detached { await stopAndReap(pid) }.value
             throw error
         }
+        if outputIsTooLarge() { throw ProcessFailure.outputTooLarge }
         func read(_ url: URL) throws -> String {
             let handle = try FileHandle(forReadingFrom: url)
             defer { try? handle.close() }
             return String(decoding: try handle.read(upToCount: 16_384) ?? Data(), as: UTF8.self)
         }
-        let result = try ProcessOutput(status: status, stdout: read(outURL), stderr: read(errURL))
+        let result = try ProcessOutput(status: status, stdout: outputFile == nil ? read(outURL) : "", stderr: read(errURL))
         guard result.status == 0 else { throw ProcessFailure.failed(result.status, result.stderr) }
         return result
     }

@@ -12,6 +12,9 @@ final class DragMonitor {
     private let pasteboard = NSPasteboard(name: .drag)
     private let target = DropTargetController()
     private let queue: ConversionQueue
+    private let feedback = ConversionFeedback()
+    private var tracked: [UUID] = []
+    private var trackingTask: Task<Void, Never>?
 
     init(registry: EngineRegistry = EngineRegistry()) {
         queue = ConversionQueue(registry: registry)
@@ -46,10 +49,22 @@ final class DragMonitor {
         target.onDrop = { [weak self] requests in
             guard let self else { return }
             self.trigger.cancel()
-            self.target.showReceipt(requests: requests)
-            Task { await self.queue.submit(requests) }
+            self.target.hide()
+            Task {
+                await self.queue.submit(requests)
+                self.tracked.append(contentsOf: requests.map(\.id))
+                self.trackJobs()
+            }
         }
         target.onCancel = { [weak self] in self?.cancel() }
+        target.onHover = { [weak self] format, look in
+            guard let self, self.tracked.isEmpty else { return }
+            self.feedback.hover(format, look: look)
+        }
+        feedback.onCancel = { [weak self] in
+            guard let self else { return }
+            Task { await self.queue.cancelAll() }
+        }
     }
 
     func stop() {
@@ -60,6 +75,30 @@ final class DragMonitor {
         escapeMonitor = nil
         localMonitor = nil
         cancel()
+        trackingTask?.cancel()
+        trackingTask = nil
+        feedback.hide()
+    }
+
+    private func trackJobs() {
+        guard trackingTask == nil else { return }
+        trackingTask = Task { [weak self] in
+            while let self, !Task.isCancelled {
+                let ids = self.tracked
+                let states = await self.queue.states(for: ids)
+                guard !Task.isCancelled else { return }
+                if ids != self.tracked { continue }
+                let completed = states.filter { $0 != .running && $0 != .queued }.count
+                if completed == states.count {
+                    self.tracked.removeAll()
+                    self.trackingTask = nil
+                    self.feedback.finish(states: states)
+                    return
+                }
+                self.feedback.progress(completed: completed, total: states.count)
+                try? await Task.sleep(for: .milliseconds(120))
+            }
+        }
     }
 
     func cancelJobsAndWait() async {
@@ -70,6 +109,7 @@ final class DragMonitor {
     private func cancel() {
         trigger.cancel()
         target.hide()
+        if tracked.isEmpty { feedback.hide() }
     }
 
     private func tick() {
@@ -87,9 +127,12 @@ final class DragMonitor {
         )
         if visible {
             if !wasVisible {
-                target.show(near: NSEvent.mouseLocation, urls: cachedURLs)
+                let point = NSEvent.mouseLocation
+                target.show(near: point, urls: cachedURLs)
+                if tracked.isEmpty { feedback.ready(at: point, fileCount: cachedURLs.count) }
             }
         } else if wasVisible {
+            if tracked.isEmpty { feedback.hide() }
             // Let AppKit finish performDragOperation before ordering out the panel.
             if !pressed {
                 DispatchQueue.main.async { [weak self] in self?.target.hideUnlessReceipt() }

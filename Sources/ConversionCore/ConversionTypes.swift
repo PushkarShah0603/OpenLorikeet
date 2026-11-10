@@ -82,5 +82,5 @@ public protocol ConversionEngine: Sendable {
     /// Write only to the supplied staging URL; honor cancellation in long-running work.
     func convert(_ request: ConversionRequest, to stagingURL: URL) async throws
     /// Decode/inspect the output for this format; existence alone is not validation.
-    func validate(output: URL, format: FileFormat) throws
+    func validate(output: URL, format: FileFormat) async throws
 }

@@ -6,6 +6,7 @@ final class DropTargetController {
     var registry = EngineRegistry()
     var onDrop: (([ConversionRequest]) -> Void)?
     var onCancel: (() -> Void)?
+    var onHover: ((FileFormat?, Double) -> Void)?
     private var panel: NSPanel?
     private var view: RadialDropView?
     private var receiptTask: Task<Void, Never>?
@@ -57,6 +58,7 @@ final class DropTargetController {
         view.autoresizingMask = [.width, .height]
         view.onDrop = { [weak self] requests in self?.onDrop?(requests) }
         view.onCancel = { [weak self] in self?.onCancel?() }
+        view.onHover = { [weak self] format, look in self?.onHover?(format, look) }
         panel.contentView = view
         self.panel = panel
         self.view = view
@@ -67,9 +69,21 @@ final class DropTargetController {
 private final class RadialDropView: NSView {
     var onDrop: (([ConversionRequest]) -> Void)?
     var onCancel: (() -> Void)?
+    var onHover: ((FileFormat?, Double) -> Void)?
     var receipt: String? { didSet { needsDisplay = true } }
     private var session = PickerSession(sources: [])
-    private var selected: Int? { didSet { needsDisplay = true; updateAccessibility() } }
+    private var selected: Int? {
+        didSet {
+            needsDisplay = true
+            updateAccessibility()
+            if let selected {
+                let angle = Double(selected) * 2 * .pi / Double(session.targets.count)
+                onHover?(session.targets[selected], sin(angle))
+            } else if oldValue != nil {
+                onHover?(nil, 0)
+            }
+        }
+    }
     private var geometry: RadialGeometry {
         RadialGeometry(center: CGPoint(x: bounds.midX, y: bounds.midY), innerRadius: bounds.width * 0.23,
                        outerRadius: bounds.width / 2 - 8, count: session.targets.count)

@@ -5,7 +5,7 @@ import Foundation
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
-    private let dragMonitor = DragMonitor()
+    private let dragMonitor = DragMonitor(registry: .local())
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -53,7 +53,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let title = NSMenuItem(title: "OpenLorikeet", action: nil, keyEquivalent: "")
         title.isEnabled = false
         menu.addItem(title)
-        let status = NSMenuItem(title: "No conversion engines installed yet", action: nil, keyEquivalent: "")
+        let status = NSMenuItem(title: "Shift-drag a file to convert", action: nil, keyEquivalent: "")
         status.isEnabled = false
         menu.addItem(status)
         menu.addItem(.separator())

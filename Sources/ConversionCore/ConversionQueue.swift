@@ -2,6 +2,7 @@ import Foundation
 import Darwin
 
 public enum WorkerError: Error, LocalizedError, Sendable {
+    case engineUnavailable(String)
     case timedOut
     case invalidOutput
     case invalidInput
@@ -9,6 +10,7 @@ public enum WorkerError: Error, LocalizedError, Sendable {
 
     public var errorDescription: String? {
         switch self {
+        case .engineUnavailable(let message): message
         case .timedOut: "Conversion exceeded its time limit."
         case .invalidOutput: "The engine did not produce a valid, nonempty file."
         case .invalidInput: "The source file is missing, unreadable, or not a regular file."
@@ -46,6 +48,8 @@ public actor ConversionQueue {
     }
 
     public func state(for id: UUID) -> JobState? { states[id] }
+
+    public func states(for ids: [UUID]) -> [JobState] { ids.map { states[$0] ?? .queued } }
 
     public func cancel(_ id: UUID) {
         if let task = active[id] {
@@ -106,6 +110,8 @@ public actor ConversionQueue {
     private nonisolated static func execute(_ request: ConversionRequest, registry: EngineRegistry, timeout: Duration) async throws -> URL {
         try Task.checkCancellation()
         guard let engine = registry.engine(source: request.sourceFormat, target: request.targetFormat) else {
+            let reasons = registry.unavailableReasons(source: request.sourceFormat, target: request.targetFormat)
+            if !reasons.isEmpty { throw WorkerError.engineUnavailable(reasons.joined(separator: "\n")) }
             throw ConversionError.unsupportedRoute(request.sourceFormat, request.targetFormat)
         }
         let fm = FileManager.default
@@ -130,7 +136,7 @@ public actor ConversionQueue {
         var metadata = stat()
         guard lstat(staging.path, &metadata) == 0,
               metadata.st_mode & S_IFMT == S_IFREG, metadata.st_size > 0 else { throw WorkerError.invalidOutput }
-        try engine.validate(output: staging, format: request.targetFormat)
+        try await engine.validate(output: staging, format: request.targetFormat)
         try Task.checkCancellation()
         let base = request.source.deletingPathExtension().lastPathComponent
         for index in 1...10_000 {
