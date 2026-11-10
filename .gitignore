@@ -1,0 +1,11 @@
+.DS_Store
+.build/
+DerivedData/
+dist/
+*.xcuserstate
+xcuserdata/
+.venv/
+__pycache__/
+.env
+Screen Recording*.mov
+Screen Recording*.mp4
