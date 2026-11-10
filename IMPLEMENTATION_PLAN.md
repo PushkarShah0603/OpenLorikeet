@@ -1,6 +1,6 @@
 # OpenLorikeet — Phased Implementation Plan
 
-Status: planning only. Complete each phase's checks before marking it done.
+Status: Phase 01 implemented; graphical launch acceptance remains pending. Complete each phase’s checks before marking it done.
 
 ## Product agreement
 - Local macOS background utility; no dashboard or main application window.
@@ -29,10 +29,12 @@ Only expose implemented routes with available engines. Image → DOCX embeds an 
 ## Small implementation phases
 
 ### Phase 01 — Project foundation
-- [ ] Create the Swift/AppKit app structure, shared conversion core, and reproducible build command.
-- [ ] Confirm the target Mac's OS/architecture and choose the minimum supported macOS version.
-- [ ] Add a placeholder icon; the final icon must not block development.
+- [x] Create the Swift/AppKit app structure, shared conversion core, and reproducible build command.
+- [x] Confirm the target Mac’s OS/architecture and choose the minimum supported macOS version. Target: macOS 15+, native architecture; development Mac: macOS 26.6.2, arm64.
+- [x] Add a placeholder icon; the final icon must not block development.
 **Done when:** the app builds and starts as a background utility without a main window.
+
+Verification: build, bundle metadata, ad-hoc signature, and core checks pass. Graphical launch is pending: this execution environment aborts inside macOS `_RegisterApplication` before the app delegate runs. See [build status](BUILD_STATUS.md).
 
 ### Phase 02 — Prove Shift-drag detection
 - [ ] Prototype detecting real file drags and Shift without interfering with ordinary Finder gestures.

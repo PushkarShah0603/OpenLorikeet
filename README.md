@@ -2,8 +2,29 @@
 
 Your files. A quick shift.
 
-A planned local macOS utility: drag a file, hold Shift, and choose a conversion from a radial menu. Compact notch feedback shows progress and results.
+A native macOS background utility being built for Shift-drag file conversion, a radial format picker, and an animated lorikeet with compact notch feedback.
 
-Document, spreadsheet, LaTeX, PDF, and image conversion—including JPG, PNG, and HEIC compression—are covered in [the implementation plan](IMPLEMENTATION_PLAN.md).
+## Current status
+Phase 1 foundation: background app, minimal menu-bar menu, placeholder icon, shared conversion models, and build/test scripts. File conversion and Shift-drag are not implemented yet. See [the phased implementation plan](IMPLEMENTATION_PLAN.md).
 
-Status: planning. Conversion functionality has not been implemented yet.
+## Build and run
+Requires macOS 15 or newer and a Swift 6 toolchain from Xcode or Command Line Tools. No external Swift packages or conversion engines are required for this phase. The build targets the current Mac's architecture.
+
+```sh
+./scripts/build.sh
+open dist/OpenLorikeet.app
+```
+
+The app runs without a main window or Dock icon. Find its bird icon (or `OL` fallback) in the menu bar; use **Quit OpenLorikeet** to stop it. The generated bundle is ad-hoc signed for local development, not notarized for distribution.
+
+The scripts currently select SwiftPM’s native build backend and omit debug symbols to work around the installed toolchain’s restricted debug-symbol generation. Core checks use a standalone executable so XCTest and compiler macro plugins are not required.
+
+## Verify
+```sh
+./scripts/test.sh
+./dist/OpenLorikeet.app/Contents/MacOS/OpenLorikeet --smoke-test
+```
+
+The smoke test requires a logged-in graphical macOS session. It follows the real launch path, checks the accessory activation policy, verifies no windows were created and that the status item was allocated, prints a result, and exits. This does not verify the menu's visual appearance; check that manually after opening the app.
+
+Build products and temporary files stay out of Git. Commits use the repository's configured author identity; the user handles pushes.
