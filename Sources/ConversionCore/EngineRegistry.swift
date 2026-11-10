@@ -5,8 +5,27 @@ public struct EngineRegistry: Sendable {
 
     public init(engines: [any ConversionEngine] = []) { self.engines = engines }
 
+    public var engineStatuses: [(name: String, availability: EngineAvailability)] {
+        engines.map { ($0.identifier, $0.availability) }
+    }
+
     public func engine(source: FileFormat, target: FileFormat) -> (any ConversionEngine)? {
         engines.first { $0.availability == .ready && $0.supports(source: source, target: target) }
+    }
+
+    func engine(source: FileFormat, choice: ConversionChoice) -> (any ConversionEngine)? {
+        engines.first { $0.availability == .ready && $0.supports(source: source, choice: choice) }
+    }
+
+    public func choices(for urls: [URL]) -> [ConversionChoice] {
+        let formats = urls.compactMap { $0.isFileURL ? FileFormat(fileExtension: $0.pathExtension) : nil }
+        guard !formats.isEmpty, formats.count == urls.count else { return [] }
+        let formatsOnly = targets(for: urls).map(ConversionChoice.format)
+        let actions: [ConversionChoice] = [.compress, .fit500KB, .resize1600, .mergePDF, .splitPDF]
+        return formatsOnly + actions.filter { action in
+            if action == .mergePDF && urls.count < 2 { return false }
+            return formats.allSatisfy { engine(source: $0, choice: action) != nil }
+        }
     }
 
     public func targets(for urls: [URL]) -> [FileFormat] {

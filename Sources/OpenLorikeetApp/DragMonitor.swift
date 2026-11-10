@@ -13,7 +13,7 @@ final class DragMonitor {
     private let target = DropTargetController()
     private let queue: ConversionQueue
     private let feedback = ConversionFeedback()
-    private var tracked: [UUID] = []
+    private var tracked: [ConversionRequest] = []
     private var trackingTask: Task<Void, Never>?
 
     init(registry: EngineRegistry = EngineRegistry()) {
@@ -52,7 +52,7 @@ final class DragMonitor {
             self.target.hide()
             Task {
                 await self.queue.submit(requests)
-                self.tracked.append(contentsOf: requests.map(\.id))
+                self.tracked.append(contentsOf: requests)
                 self.trackJobs()
             }
         }
@@ -84,15 +84,16 @@ final class DragMonitor {
         guard trackingTask == nil else { return }
         trackingTask = Task { [weak self] in
             while let self, !Task.isCancelled {
-                let ids = self.tracked
+                let requests = self.tracked
+                let ids = requests.map(\.id)
                 let states = await self.queue.states(for: ids)
                 guard !Task.isCancelled else { return }
-                if ids != self.tracked { continue }
+                if ids != self.tracked.map(\.id) { continue }
                 let completed = states.filter { $0 != .running && $0 != .queued }.count
                 if completed == states.count {
                     self.tracked.removeAll()
                     self.trackingTask = nil
-                    self.feedback.finish(states: states)
+                    self.feedback.finish(states: states, requests: requests)
                     return
                 }
                 self.feedback.progress(completed: completed, total: states.count)
@@ -102,7 +103,7 @@ final class DragMonitor {
     }
 
     func cancelJobsAndWait() async {
-        await queue.cancelAll()
+        await queue.shutdown()
         await queue.waitUntilIdle()
     }
 
@@ -128,16 +129,16 @@ final class DragMonitor {
         if visible {
             if !wasVisible {
                 let point = NSEvent.mouseLocation
-                target.show(near: point, urls: cachedURLs)
-                if tracked.isEmpty { feedback.ready(at: point, fileCount: cachedURLs.count) }
+                let available = target.show(near: point, urls: cachedURLs)
+                if tracked.isEmpty { feedback.ready(at: point, fileCount: cachedURLs.count, available: available) }
             }
         } else if wasVisible {
             if tracked.isEmpty { feedback.hide() }
             // Let AppKit finish performDragOperation before ordering out the panel.
             if !pressed {
-                DispatchQueue.main.async { [weak self] in self?.target.hideUnlessReceipt() }
+                DispatchQueue.main.async { [weak self] in self?.target.hide() }
             } else {
-                target.hideUnlessReceipt()
+                target.hide()
             }
         }
     }

@@ -8,20 +8,23 @@ final class ConversionFeedback: NSObject {
     private let detail = NSTextField(wrappingLabelWithString: "")
     private let openButton = NSButton(title: "Open", target: nil, action: nil)
     private let revealButton = NSButton(title: "Show in Finder", target: nil, action: nil)
-    private let cancelButton = NSButton(title: "Cancel", target: nil, action: nil)
+    private let cancelButton = NSButton(title: "Cancel batch", target: nil, action: nil)
     private var panel: NSPanel?
     private var dismissTask: Task<Void, Never>?
     private var outputs: [URL] = []
     private var screen: NSScreen?
     var onCancel: (() -> Void)?
 
-    func ready(at point: NSPoint, fileCount: Int) {
+    func ready(at point: NSPoint, fileCount: Int, available: Bool) {
         screen = NSScreen.screens.first { $0.frame.contains(point) } ?? NSScreen.main
-        show(title: "Choose an output format", detail: "\(fileCount) selected", pose: .ready)
+        let heading = available ? "Choose an output format" : "No available formats"
+        let detail = available ? "\(fileCount) selected"
+            : (fileCount > 1 ? "Choose files that share an output format." : "Check Conversion engines in the menu bar.")
+        show(title: heading, detail: detail, pose: .ready)
     }
 
-    func hover(_ format: FileFormat?, look: Double) {
-        title.stringValue = format.map { "Convert to \($0.fileExtension.uppercased())" } ?? "Choose an output format"
+    func hover(_ choice: ConversionChoice?, look: NSPoint) {
+        title.stringValue = choice.map { $0.label } ?? "Choose an output format"
         bird.look = look
     }
 
@@ -30,13 +33,13 @@ final class ConversionFeedback: NSObject {
              detail: "\(completed) of \(total) finished", pose: .working, cancellable: true)
     }
 
-    func finish(states: [JobState]) {
+    func finish(states: [JobState], requests: [ConversionRequest]) {
         let urls = states.compactMap { state -> URL? in
             if case .succeeded(let url) = state { return url }
             return nil
         }
-        let failures = states.compactMap { state -> String? in
-            if case .failed(let message) = state { return message }
+        let failures = zip(states, requests).compactMap { state, request -> String? in
+            if case .failed(let message) = state { return request.source.lastPathComponent + " · " + message }
             return nil
         }
         let cancelled = states.filter { $0 == .cancelled }.count
@@ -46,9 +49,15 @@ final class ConversionFeedback: NSObject {
             show(title: "\(cancelled) cancelled", detail: "\(urls.count) converted copies saved",
                  pose: .ready, outputs: urls)
         } else {
+            var message = urls.count == 1 ? urls[0].lastPathComponent : "Saved beside the originals"
+            if urls.count == 1, let request = requests.first,
+               [.compress, .fit500KB].contains(request.choice),
+               let original = try? request.source.resourceValues(forKeys: [.fileSizeKey]).fileSize,
+               let saved = try? urls[0].resourceValues(forKeys: [.fileSizeKey]).fileSize, original > saved {
+                message = "Saved " + ByteCountFormatter.string(fromByteCount: Int64(original - saved), countStyle: .file)
+            }
             show(title: urls.count == 1 ? "Conversion complete" : "\(urls.count) files converted",
-                 detail: urls.count == 1 ? urls[0].lastPathComponent : "Saved beside the originals",
-                 pose: .happy, outputs: urls)
+                 detail: message, pose: .happy, outputs: urls)
         }
         if failures.isEmpty {
             dismissTask = Task { [weak self] in
@@ -145,14 +154,14 @@ final class ConversionFeedback: NSObject {
 private final class LorikeetView: NSView {
     enum Pose { case ready, working, happy, failed }
     private(set) var pose: Pose = .ready
-    var look = 0.0 { didSet { needsDisplay = true } }
+    var look = NSPoint.zero { didSet { needsDisplay = true } }
     private var timer: Timer?
     private var began = ProcessInfo.processInfo.systemUptime
 
     func animate(_ pose: Pose) {
         stop()
         self.pose = pose
-        look = 0
+        look = .zero
         began = ProcessInfo.processInfo.systemUptime
         needsDisplay = true
         guard !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion, pose != .failed else { return }
@@ -174,7 +183,8 @@ private final class LorikeetView: NSView {
         let t = timer == nil ? 0 : ProcessInfo.processInfo.systemUptime - began
         let jump = pose == .happy && timer != nil ? max(0, sin(t * 10)) * max(0, 1 - t) * 8 : 0
         let bob = timer == nil ? 0 : sin(t * 4) * 1.4
-        let offset = jump + bob
+        let peek = timer != nil && pose == .ready ? 12 * max(0, 1 - t / 0.22) : 0
+        let offset = jump + bob - peek
         func oval(_ x: Double, _ y: Double, _ w: Double, _ h: Double, _ color: NSColor) {
             color.setFill()
             NSBezierPath(ovalIn: NSRect(x: x, y: y + offset, width: w, height: h)).fill()
@@ -183,12 +193,13 @@ private final class LorikeetView: NSView {
         oval(13, 13, 39, 36, .systemGreen)
         oval(21, 16, 27, 28, .systemOrange)
         oval(12, 15 + wing, 18, 26, .systemGreen.blended(withFraction: 0.3, of: .black) ?? .systemGreen)
-        let headOffset = pose == .failed ? -3.0 : look * 3
+        let direction = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? NSPoint.zero : look
+        let headOffset = pose == .failed ? -3.0 : direction.x * 3
         oval(14 + headOffset, 37, 39, 35, .systemBlue)
         oval(40 + headOffset, 44, 18, 10, .systemOrange)
         let blink = timer != nil && t.truncatingRemainder(dividingBy: 3.1) > 2.95
         oval(38 + headOffset, 53, 10, blink ? 2 : 10, .white)
-        if !blink { oval(41 + headOffset + look * 2, 55, 5, 5, .black) }
+        if !blink { oval(41 + headOffset + direction.x * 2, 55 + direction.y * 2, 5, 5, .black) }
         if pose == .happy && timer != nil && UserDefaults.standard.object(forKey: "FeatherCelebrations") as? Bool != false {
             for index in 0..<7 {
                 let age = t - Double(index) * 0.085

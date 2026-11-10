@@ -197,3 +197,7 @@ print("PASS: in-flight cancellation, shutdown drain, process cancellation, and n
 
 try await checkDocumentRoutes()
 try await checkImageRoutes()
+try await checkTableRoutes()
+try await checkPDFRoutes()
+try await checkTechnicalRoutes()
+try await checkCompression()

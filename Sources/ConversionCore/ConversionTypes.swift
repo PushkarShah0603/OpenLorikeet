@@ -41,21 +41,70 @@ public enum ConversionError: Error, LocalizedError, Equatable, Sendable {
     }
 }
 
+public enum ConversionChoice: Hashable, Sendable {
+    case format(FileFormat)
+    case compress, fit500KB, resize1600
+    case mergePDF, splitPDF
+
+    public var label: String {
+        switch self {
+        case .format(let format): format.fileExtension.uppercased()
+        case .compress: "Compress"
+        case .fit500KB: "500 KB"
+        case .resize1600: "1600 px"
+        case .mergePDF: "Merge"
+        case .splitPDF: "Split"
+        }
+    }
+
+    public func target(for source: FileFormat) -> FileFormat {
+        switch self {
+        case .format(let format): format
+        case .compress, .fit500KB, .resize1600: source
+        case .mergePDF, .splitPDF: .pdf
+        }
+    }
+
+    var outputSuffix: String {
+        switch self {
+        case .format: ""
+        case .compress: " (compressed)"
+        case .fit500KB: " (500 KB)"
+        case .resize1600: " (1600 px)"
+        case .mergePDF: " (merged)"
+        case .splitPDF: " (pages)"
+        }
+    }
+}
+
 public struct ConversionRequest: Identifiable, Sendable {
     public let id: UUID
-    public let source: URL
+    public let inputs: [URL]
+    public var source: URL { inputs[0] }
     public let sourceFormat: FileFormat
     public let targetFormat: FileFormat
+    public let choice: ConversionChoice
 
     public init(source: URL, targetFormat: FileFormat) throws {
-        guard source.isFileURL else { throw ConversionError.inputMustBeLocalFile }
+        try self.init(inputs: [source], choice: .format(targetFormat))
+    }
+
+    public init(inputs: [URL], choice: ConversionChoice) throws {
+        guard let source = inputs.first, inputs.allSatisfy(\.isFileURL) else { throw ConversionError.inputMustBeLocalFile }
         guard let format = FileFormat(fileExtension: source.pathExtension) else {
             throw ConversionError.unsupportedInput(source.lastPathComponent)
         }
+        if choice == .mergePDF {
+            guard inputs.count > 1, Set(inputs.map(\.standardizedFileURL)).count == inputs.count,
+                  inputs.allSatisfy({ FileFormat(fileExtension: $0.pathExtension) == .pdf }) else { throw WorkerError.invalidInput }
+        } else if inputs.count != 1 {
+            throw WorkerError.invalidInput
+        }
         self.id = UUID()
-        self.source = source.standardizedFileURL
+        self.inputs = inputs.map(\.standardizedFileURL)
         self.sourceFormat = format
-        self.targetFormat = targetFormat
+        self.targetFormat = choice.target(for: format)
+        self.choice = choice
     }
 }
 
@@ -79,8 +128,20 @@ public protocol ConversionEngine: Sendable {
     var identifier: String { get }
     var availability: EngineAvailability { get }
     func supports(source: FileFormat, target: FileFormat) -> Bool
+    func supports(source: FileFormat, choice: ConversionChoice) -> Bool
+    func producesFolder(for request: ConversionRequest) -> Bool
     /// Write only to the supplied staging URL; honor cancellation in long-running work.
     func convert(_ request: ConversionRequest, to stagingURL: URL) async throws
     /// Decode/inspect the output for this format; existence alone is not validation.
     func validate(output: URL, format: FileFormat) async throws
+}
+
+
+public extension ConversionEngine {
+    func supports(source: FileFormat, choice: ConversionChoice) -> Bool {
+        guard case .format(let target) = choice else { return false }
+        return supports(source: source, target: target)
+    }
+
+    func producesFolder(for request: ConversionRequest) -> Bool { false }
 }

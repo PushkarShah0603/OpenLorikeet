@@ -30,19 +30,30 @@ public enum PlannedChoices {
 
 public struct PickerSession: Sendable {
     public let sources: [URL]
-    public let targets: [FileFormat]
+    public let choices: [ConversionChoice]
+    public var targets: [FileFormat] { choices.compactMap { if case .format(let format) = $0 { format } else { nil } } }
     public private(set) var consumed = false
 
     public init(sources: [URL], targets: [FileFormat]? = nil) {
+        self.init(sources: sources, choices: (targets ?? PlannedChoices.commonTargets(for: sources)).map(ConversionChoice.format))
+    }
+
+    public init(sources: [URL], choices: [ConversionChoice]) {
         self.sources = sources
-        self.targets = targets ?? PlannedChoices.commonTargets(for: sources)
+        self.choices = choices
     }
 
     /// Capture a drop once, only if the source set still matches the active drag.
     public mutating func select(_ target: FileFormat, droppedURLs: [URL]) throws -> [ConversionRequest]? {
-        guard !consumed, targets.contains(target), sources.count == droppedURLs.count,
+        try select(.format(target), droppedURLs: droppedURLs)
+    }
+
+    public mutating func select(_ choice: ConversionChoice, droppedURLs: [URL]) throws -> [ConversionRequest]? {
+        guard !consumed, choices.contains(choice), sources.count == droppedURLs.count,
               Set(sources.map(\.standardizedFileURL)) == Set(droppedURLs.map(\.standardizedFileURL)) else { return nil }
-        let requests = try sources.map { try ConversionRequest(source: $0, targetFormat: target) }
+        let requests = try choice == .mergePDF
+            ? [ConversionRequest(inputs: sources, choice: choice)]
+            : sources.map { try ConversionRequest(inputs: [$0], choice: choice) }
         consumed = true
         return requests
     }

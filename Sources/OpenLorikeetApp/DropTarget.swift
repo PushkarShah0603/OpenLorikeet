@@ -6,43 +6,24 @@ final class DropTargetController {
     var registry = EngineRegistry()
     var onDrop: (([ConversionRequest]) -> Void)?
     var onCancel: (() -> Void)?
-    var onHover: ((FileFormat?, Double) -> Void)?
+    var onHover: ((ConversionChoice?, NSPoint) -> Void)?
     private var panel: NSPanel?
     private var view: RadialDropView?
-    private var receiptTask: Task<Void, Never>?
-    private var showingReceipt = false
 
-    func show(near point: NSPoint, urls: [URL]) {
-        receiptTask?.cancel()
-        showingReceipt = false
+    @discardableResult
+    func show(near point: NSPoint, urls: [URL]) -> Bool {
         if panel == nil { makePanel() }
-        guard let panel, let view else { return }
+        guard let panel, let view else { return false }
         let screen = NSScreen.screens.first { $0.frame.contains(point) } ?? NSScreen.main
         let visible = screen?.visibleFrame ?? NSRect(x: point.x - 200, y: point.y - 200, width: 400, height: 400)
         panel.setFrame(RadialGeometry.frame(near: point, in: visible), display: false)
-        view.configure(urls: urls, targets: registry.targets(for: urls))
+        let choices = registry.choices(for: urls)
+        view.configure(urls: urls, choices: choices)
         panel.orderFrontRegardless()
+        return !choices.isEmpty
     }
 
-    func showReceipt(requests: [ConversionRequest]) {
-        showingReceipt = true
-        view?.receipt = "\(requests.count) → \(requests.first?.targetFormat.fileExtension.uppercased() ?? "")"
-        receiptTask?.cancel()
-        receiptTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(2))
-            guard !Task.isCancelled else { return }
-            self?.hide()
-        }
-    }
-
-    func hideUnlessReceipt() { if !showingReceipt { hide() } }
-
-    func hide() {
-        receiptTask?.cancel()
-        receiptTask = nil
-        showingReceipt = false
-        panel?.orderOut(nil)
-    }
+    func hide() { panel?.orderOut(nil) }
 
     private func makePanel() {
         let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 340, height: 340),
@@ -69,24 +50,23 @@ final class DropTargetController {
 private final class RadialDropView: NSView {
     var onDrop: (([ConversionRequest]) -> Void)?
     var onCancel: (() -> Void)?
-    var onHover: ((FileFormat?, Double) -> Void)?
-    var receipt: String? { didSet { needsDisplay = true } }
+    var onHover: ((ConversionChoice?, NSPoint) -> Void)?
     private var session = PickerSession(sources: [])
     private var selected: Int? {
         didSet {
             needsDisplay = true
             updateAccessibility()
             if let selected {
-                let angle = Double(selected) * 2 * .pi / Double(session.targets.count)
-                onHover?(session.targets[selected], sin(angle))
+                let angle = Double(selected) * 2 * .pi / Double(session.choices.count)
+                onHover?(session.choices[selected], NSPoint(x: sin(angle), y: cos(angle)))
             } else if oldValue != nil {
-                onHover?(nil, 0)
+                onHover?(nil, .zero)
             }
         }
     }
     private var geometry: RadialGeometry {
         RadialGeometry(center: CGPoint(x: bounds.midX, y: bounds.midY), innerRadius: bounds.width * 0.23,
-                       outerRadius: bounds.width / 2 - 8, count: session.targets.count)
+                       outerRadius: bounds.width / 2 - 8, count: session.choices.count)
     }
 
     override init(frame: NSRect) {
@@ -98,21 +78,20 @@ private final class RadialDropView: NSView {
     }
     required init?(coder: NSCoder) { nil }
 
-    func configure(urls: [URL], targets: [FileFormat]) {
-        session = PickerSession(sources: urls, targets: targets)
-        receipt = nil
+    func configure(urls: [URL], choices: [ConversionChoice]) {
+        session = PickerSession(sources: urls, choices: choices)
         selected = nil
         needsDisplay = true
     }
 
     private func updateAccessibility() {
-        let label = selected.map { session.targets[$0].fileExtension.uppercased() } ?? "Choose a planned format"
+        let label = selected.map { session.choices[$0].label } ?? "Choose a planned format"
         setAccessibilityLabel("OpenLorikeet. \(label).")
     }
 
     override func draw(_ dirtyRect: NSRect) {
         let g = geometry
-        let n = session.targets.count
+        let n = session.choices.count
         if n > 0 {
             let step = 360.0 / Double(n)
             let gap = g.gapRadians * 180 / .pi
@@ -129,20 +108,19 @@ private final class RadialDropView: NSView {
                 path.fill()
                 let theta = angle * .pi / 180
                 let radius = (g.innerRadius + g.outerRadius) / 2
-                drawCentered(session.targets[index].fileExtension.uppercased(),
+                drawCentered(session.choices[index].label,
                              at: CGPoint(x: g.center.x + cos(theta) * radius, y: g.center.y + sin(theta) * radius),
-                             size: 13, color: .white)
+                             size: n > 7 ? 10 : 13, color: .white)
             }
         }
         let disk = NSRect(x: g.center.x - g.innerRadius + 5, y: g.center.y - g.innerRadius + 5,
                           width: g.innerRadius * 2 - 10, height: g.innerRadius * 2 - 10)
         NSColor(calibratedWhite: 0.08, alpha: 0.98).setFill()
         NSBezierPath(ovalIn: disk).fill()
-        let title = receipt ?? selected.map { session.targets[$0].fileExtension.uppercased() }
-            ?? (n == 0 ? "No engines" : "Choose format")
-        drawCentered(title, at: CGPoint(x: g.center.x, y: g.center.y + 12), size: 13, color: .white)
-        drawCentered(receipt == nil ? "Choose output" : "Queued", at: CGPoint(x: g.center.x, y: g.center.y - 8), size: 10, color: .systemYellow)
-        drawCentered(receipt == nil ? (n == 0 ? "Engines required" : "Drop on a format") : "Processing pending", at: CGPoint(x: g.center.x, y: g.center.y - 25), size: 9, color: .lightGray)
+        let title = selected.map { session.choices[$0].label } ?? (n == 0 ? "No formats" : "Choose format")
+        drawCentered(title, at: CGPoint(x: g.center.x, y: g.center.y + 12), size: n > 7 ? 10 : 13, color: .white)
+        drawCentered(n == 0 ? "Check selected files" : "Drop on a format",
+                     at: CGPoint(x: g.center.x, y: g.center.y - 9), size: 10, color: .lightGray)
     }
 
     private func drawCentered(_ text: String, at point: CGPoint, size: Double, color: NSColor) {
@@ -153,7 +131,7 @@ private final class RadialDropView: NSView {
     }
 
     private func updateSelection(_ sender: NSDraggingInfo) -> NSDragOperation {
-        guard receipt == nil, !session.consumed, NSEvent.modifierFlags.contains(.shift),
+        guard !session.consumed, NSEvent.modifierFlags.contains(.shift),
               sender.draggingSourceOperationMask.contains(.copy) else {
             selected = nil
             return []
@@ -169,7 +147,7 @@ private final class RadialDropView: NSView {
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
         guard updateSelection(sender) == .copy, let selected else { return false }
         do {
-            guard let requests = try session.select(session.targets[selected], droppedURLs: DragMonitor.fileURLs(from: sender.draggingPasteboard)) else { return false }
+            guard let requests = try session.select(session.choices[selected], droppedURLs: DragMonitor.fileURLs(from: sender.draggingPasteboard)) else { return false }
             onDrop?(requests)
             return true
         } catch { return false }

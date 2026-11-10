@@ -40,7 +40,19 @@ public struct ImageEngine: ConversionEngine {
         return Self.encoders.contains(target)
     }
 
+    public func supports(source: FileFormat, choice: ConversionChoice) -> Bool {
+        switch choice {
+        case .format(let target): supports(source: source, target: target)
+        case .compress, .fit500KB, .resize1600: Self.encoders.contains(source)
+        case .mergePDF, .splitPDF: false
+        }
+    }
+
     public func convert(_ request: ConversionRequest, to output: URL) async throws {
+        if request.choice != .format(request.targetFormat) {
+            try compressOrResize(request, to: output)
+            return
+        }
         let image = try Self.decode(request.source)
         try Task.checkCancellation()
         switch request.targetFormat {
@@ -62,6 +74,47 @@ public struct ImageEngine: ConversionEngine {
         default:
             try Self.encode(image, format: request.targetFormat, quality: 0.86).write(to: output)
         }
+    }
+
+    private func compressOrResize(_ request: ConversionRequest, to output: URL) throws {
+        let input = request.source
+        let format = request.sourceFormat
+        let originalSize = try input.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
+        guard originalSize > 0, originalSize <= 100 * 1024 * 1024 else { throw WorkerError.invalidInput }
+        let data: Data
+        switch request.choice {
+        case .compress:
+            if format == .png {
+                _ = try Self.decode(input)
+                data = try PNGOptimizer.optimize(Data(contentsOf: input))
+            } else {
+                data = try Self.encode(Self.decode(input), format: format, quality: 0.78)
+            }
+        case .resize1600:
+            data = try Self.encode(Self.decode(input, maximum: 1600), format: format, quality: 0.86)
+        case .fit500KB:
+            guard originalSize > 500_000 else { throw WorkerError.engineUnavailable("This image is already below 500 KB.") }
+            var best: Data?
+            for maximum in [nil, 2400, 1600, 1024, 640] as [Int?] {
+                try Task.checkCancellation()
+                let image = try Self.decode(input, maximum: maximum)
+                let qualities = format == .png ? [1.0] : [0.88, 0.72, 0.55, 0.4]
+                for quality in qualities {
+                    try Task.checkCancellation()
+                    let candidate = try Self.encode(image, format: format, quality: quality)
+                    if candidate.count <= 500_000 { best = candidate; break }
+                }
+                if best != nil { break }
+            }
+            guard let best else { throw WorkerError.engineUnavailable("Could not reach 500 KB within the resize and quality limits.") }
+            data = best
+        default: throw WorkerError.invalidInput
+        }
+        guard data.count < originalSize || request.choice == .resize1600 else {
+            throw WorkerError.engineUnavailable("The image is already optimized at these settings.")
+        }
+        try Task.checkCancellation()
+        try data.write(to: output)
     }
 
     public func validate(output: URL, format: FileFormat) async throws {

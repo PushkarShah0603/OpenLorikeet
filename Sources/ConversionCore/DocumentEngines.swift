@@ -92,5 +92,5 @@ public struct LibreOfficeEngine: ConversionEngine {
 }
 
 public extension EngineRegistry {
-    static func local() -> Self { Self(engines: [LibreOfficeEngine(), WordTextEngine(), ImageEngine()]) }
+    static func local() -> Self { Self(engines: [LibreOfficeEngine(), WordTextEngine(), ImageEngine(), SpreadsheetEngine(), PDFEngine(), PandocEngine(), TectonicEngine()]) }
 }

@@ -47,5 +47,16 @@ func checkImageRoutes() async throws {
             }
         }
     }
+    let rotatedInput = folder.appendingPathComponent("Rotated JPEG.jpg")
+    let jpeg = CGImageDestinationCreateWithURL(rotatedInput as CFURL, "public.jpeg" as CFString, 1, nil)!
+    CGImageDestinationAddImage(jpeg, bitmap.makeImage()!, [kCGImagePropertyOrientation: 6] as CFDictionary)
+    check(CGImageDestinationFinalize(jpeg), "Rotated JPEG fixture encoded")
+    let rotatedJob = try ConversionRequest(source: rotatedInput, targetFormat: .png)
+    await queue.submit([rotatedJob])
+    await queue.waitUntilIdle()
+    guard case .succeeded(let rotated) = await queue.state(for: rotatedJob.id),
+          let source = CGImageSourceCreateWithURL(rotated as CFURL, nil),
+          let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { fatalError("Rotated JPEG export failed") }
+    check(image.width == 96 && image.height == 128, "EXIF orientation is applied to output pixels")
     print("PASS: image routes \(targets.map(\.rawValue).joined(separator: ", ")), readable outputs, expected dimensions, and Word image package")
 }
