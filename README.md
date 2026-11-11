@@ -12,7 +12,7 @@ macOS 15+ · Native AppKit · Local conversion
 
 </div>
 
-OpenLorikeet is a menu bar utility for converting documents, images, and spreadsheets. Start dragging a file in Finder, hold **Shift**, and drop it on an output format. The lorikeet follows the selection and celebrates once a validated copy is saved beside the original.
+OpenLorikeet is a menu bar utility for converting documents, images, and spreadsheets. Start dragging a file in Finder, hold **Shift**, and drop it on an output format. The animated 3D lorikeet follows the selection and celebrates once a validated copy is saved beside the original.
 
 ## How it works
 
@@ -20,14 +20,16 @@ OpenLorikeet is a menu bar utility for converting documents, images, and spreads
 2. Hold **Shift** to reveal the format wheel. It shows actions shared by the selected files and supported by the installed engines.
 3. Drop onto a segment. Use **Open** or **Show in Finder** from the result panel.
 
+Hold **Command** during a PDF drag for the PDF tools wheel. You can also choose **Convert Files…** from the menu bar, select files, and pick an output or tool.
+
 A batch keeps separate results for each file. OpenLorikeet validates each output before saving it and chooses a new name if the destination already exists. The menu bar includes engine status, launch at login, and a feather celebration toggle. Animations respect Reduce Motion.
 
 ## Formats and actions
 
 | Input | Actions |
 |---|---|
-| **DOCX** | TXT and text-based HTML. Formatted PDF and ODT with LibreOffice. Markdown and LaTeX with Pandoc |
-| **PDF** | Merge, split, selectable TXT, page images, and editable DOCX reconstruction |
+| **DOCX** | Built-in PDF, TXT, and text-based HTML. LibreOffice improves Word layout fidelity and adds ODT. Pandoc adds Markdown and LaTeX |
+| **PDF** | Compress, edit metadata, organize pages, merge, split, extract selectable TXT, export page images, and reconstruct editable DOCX |
 | **CSV / TSV** | XLSX, paginated PDF, and delimited text conversion |
 | **XLSX** | PDF, or separate CSV and TSV files for each worksheet |
 | **JPG / PNG / HEIC** | Available image formats, PDF, compression, 500 KB target, and 1600 px resize |
@@ -36,6 +38,10 @@ A batch keeps separate results for each file. OpenLorikeet validates each output
 | **LaTeX** | Cached offline PDF compilation with Tectonic. Markdown and DOCX with Pandoc |
 
 PDF merge uses the order delivered by Finder. Page, sheet, and document bundle exports create folders. CSV-to-XLSX stores values as strings, preserving leading zeros and long identifiers. XLSX-to-text exports stored formula results and underlying cell values.
+
+The built-in DOCX renderer uses macOS Word import and text layout. Documents with complex page layouts may render differently from Word. OpenLorikeet prefers LibreOffice for PDF if it is installed.
+
+PDF compression optimizes embedded images for screen viewing and saves a copy only when it is smaller. Metadata edits cover title, author, subject, and keywords. Organize accepts page lists and ranges such as `3, 1-2` and omits pages you leave out.
 
 PDF-to-Word reconstructs text and simple aligned tables. Complex layouts and illustrations can change or be omitted. OCR uses macOS Vision for image-only pages. HEIC output appears only when the encoder passes a round-trip check.
 
@@ -58,7 +64,7 @@ Install the tools you need and relaunch OpenLorikeet. The app checks the standar
 
 | Engine | Enables |
 |---|---|
-| [LibreOffice](https://www.libreoffice.org/download/download-libreoffice/) | Formatted DOCX to PDF and ODT |
+| [LibreOffice](https://www.libreoffice.org/download/download-libreoffice/) | Higher-fidelity DOCX to PDF and ODT export |
 | [Pandoc](https://pandoc.org/installing.html) | Markdown, Word, and LaTeX routes. Use a build with embedded data files for sandboxed DOCX writing |
 | [Tectonic](https://tectonic-typesetting.github.io/) | TeX and Markdown PDF routes. Populate your project’s package cache first |
 

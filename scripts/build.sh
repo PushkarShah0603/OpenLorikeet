@@ -1,11 +1,14 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-export CLANG_MODULE_CACHE_PATH="$PWD/.build/ModuleCache"
-export SWIFTPM_MODULECACHE_OVERRIDE="$PWD/.build/ModuleCache"
+build_dir="$PWD/.build/swiftpm"
+export CLANG_MODULE_CACHE_PATH="$build_dir/ModuleCache"
+export SWIFTPM_MODULECACHE_OVERRIDE="$CLANG_MODULE_CACHE_PATH"
 mkdir -p "$CLANG_MODULE_CACHE_PATH"
-swift build --build-system native -debug-info-format none --disable-sandbox --cache-path "$PWD/.build/cache" --config-path "$PWD/.build/config" --security-path "$PWD/.build/security" --product OpenLorikeet -c release
-bin_dir=$(swift build --build-system native -debug-info-format none --disable-sandbox --cache-path "$PWD/.build/cache" --config-path "$PWD/.build/config" --security-path "$PWD/.build/security" -c release --show-bin-path)
+build_options=(--scratch-path "$build_dir" --build-system native -debug-info-format none --disable-sandbox
+    --cache-path "$build_dir/cache" --config-path "$build_dir/config" --security-path "$build_dir/security")
+swift build "${build_options[@]}" --product OpenLorikeet -c release
+bin_dir=$(swift build "${build_options[@]}" -c release --show-bin-path)
 final_app="$PWD/dist/OpenLorikeet.app"
 mkdir -p "$PWD/dist"
 staging=$(mktemp -d "$PWD/dist/.app-build.XXXXXX")

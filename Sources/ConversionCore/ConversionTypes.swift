@@ -44,16 +44,18 @@ public enum ConversionError: Error, LocalizedError, Equatable, Sendable {
 public enum ConversionChoice: Hashable, Sendable {
     case format(FileFormat)
     case compress, fit500KB, resize1600
-    case mergePDF, splitPDF
+    case mergePDF, splitPDF, compressPDF, metadataPDF, organizePDF
 
     public var label: String {
         switch self {
         case .format(let format): format.fileExtension.uppercased()
-        case .compress: "Compress"
+        case .compress, .compressPDF: "Compress"
         case .fit500KB: "500 KB"
         case .resize1600: "1600 px"
         case .mergePDF: "Merge"
         case .splitPDF: "Split"
+        case .metadataPDF: "Metadata"
+        case .organizePDF: "Organize"
         }
     }
 
@@ -61,19 +63,60 @@ public enum ConversionChoice: Hashable, Sendable {
         switch self {
         case .format(let format): format
         case .compress, .fit500KB, .resize1600: source
-        case .mergePDF, .splitPDF: .pdf
+        case .mergePDF, .splitPDF, .compressPDF, .metadataPDF, .organizePDF: .pdf
         }
     }
 
     var outputSuffix: String {
         switch self {
         case .format: ""
-        case .compress: " (compressed)"
+        case .compress, .compressPDF: " (compressed)"
         case .fit500KB: " (500 KB)"
         case .resize1600: " (1600 px)"
         case .mergePDF: " (merged)"
         case .splitPDF: " (pages)"
+        case .metadataPDF: " (metadata)"
+        case .organizePDF: " (organized)"
         }
+    }
+}
+
+public struct PDFMetadata: Sendable {
+    public var title: String
+    public var author: String
+    public var subject: String
+    public var keywords: [String]
+
+    public init(title: String = "", author: String = "", subject: String = "", keywords: [String] = []) {
+        self.title = title
+        self.author = author
+        self.subject = subject
+        self.keywords = keywords
+    }
+}
+
+public enum PDFOptions: Sendable {
+    case metadata(PDFMetadata)
+    case pageOrder([Int])
+
+    /// Parses one-based numbers and ranges into zero-based page indices.
+    public static func pageIndices(_ text: String, count: Int) throws -> [Int] {
+        let error = WorkerError.engineUnavailable("Enter page numbers from 1 to \(count) without repeats. Ranges can run in either direction.")
+        var pages: [Int] = []
+        var seen = Set<Int>()
+        for token in text.split(separator: ",", omittingEmptySubsequences: false) {
+            let parts = token.split(separator: "-", omittingEmptySubsequences: false)
+            let bounds = parts.compactMap { Int($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
+            guard bounds.count == parts.count, (1...2).contains(parts.count),
+                  bounds.allSatisfy({ $0 >= 1 && $0 <= count }),
+                  let first = bounds.first, let last = bounds.last else { throw error }
+            for page in stride(from: first, through: last, by: first <= last ? 1 : -1) {
+                guard seen.insert(page).inserted else { throw error }
+                pages.append(page - 1)
+            }
+        }
+        guard !pages.isEmpty else { throw error }
+        return pages
     }
 }
 
@@ -84,12 +127,13 @@ public struct ConversionRequest: Identifiable, Sendable {
     public let sourceFormat: FileFormat
     public let targetFormat: FileFormat
     public let choice: ConversionChoice
+    public let pdfOptions: PDFOptions?
 
     public init(source: URL, targetFormat: FileFormat) throws {
         try self.init(inputs: [source], choice: .format(targetFormat))
     }
 
-    public init(inputs: [URL], choice: ConversionChoice) throws {
+    public init(inputs: [URL], choice: ConversionChoice, pdfOptions: PDFOptions? = nil) throws {
         guard let source = inputs.first, inputs.allSatisfy(\.isFileURL) else { throw ConversionError.inputMustBeLocalFile }
         guard let format = FileFormat(fileExtension: source.pathExtension) else {
             throw ConversionError.unsupportedInput(source.lastPathComponent)
@@ -105,6 +149,7 @@ public struct ConversionRequest: Identifiable, Sendable {
         self.sourceFormat = format
         self.targetFormat = choice.target(for: format)
         self.choice = choice
+        self.pdfOptions = pdfOptions
     }
 }
 

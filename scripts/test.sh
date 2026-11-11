@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-export CLANG_MODULE_CACHE_PATH="$PWD/.build/ModuleCache"
-export SWIFTPM_MODULECACHE_OVERRIDE="$PWD/.build/ModuleCache"
-swift run --build-system native -debug-info-format none --disable-sandbox --cache-path "$PWD/.build/cache" --config-path "$PWD/.build/config" --security-path "$PWD/.build/security" CoreChecks
+build_dir="$PWD/.build/swiftpm"
+export CLANG_MODULE_CACHE_PATH="$build_dir/ModuleCache"
+export SWIFTPM_MODULECACHE_OVERRIDE="$CLANG_MODULE_CACHE_PATH"
+swift run --scratch-path "$build_dir" --build-system native -debug-info-format none --disable-sandbox \
+    --cache-path "$build_dir/cache" --config-path "$build_dir/config" --security-path "$build_dir/security" CoreChecks

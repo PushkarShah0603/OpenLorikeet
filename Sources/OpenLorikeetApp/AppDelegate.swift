@@ -65,9 +65,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let title = NSMenuItem(title: "OpenLorikeet", action: nil, keyEquivalent: "")
         title.isEnabled = false
         menu.addItem(title)
-        let status = NSMenuItem(title: "Shift-drag a file to convert", action: nil, keyEquivalent: "")
+        let status = NSMenuItem(title: "Shift-drag to convert · Command-drag for PDF tools", action: nil, keyEquivalent: "")
         status.isEnabled = false
         menu.addItem(status)
+        let convert = NSMenuItem(title: "Convert Files…", action: #selector(pickFiles), keyEquivalent: "")
+        convert.target = self
+        menu.addItem(convert)
         let engines = NSMenuItem(title: "Conversion engines", action: nil, keyEquivalent: "")
         let engineMenu = NSMenu()
         for engine in registry.engineStatuses {
@@ -125,6 +128,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func toggleCelebrations() {
         let enabled = UserDefaults.standard.object(forKey: "FeatherCelebrations") as? Bool != false
         UserDefaults.standard.set(!enabled, forKey: "FeatherCelebrations")
+    }
+
+    @objc private func pickFiles() {
+        NSApp.activate()
+        let picker = NSOpenPanel()
+        picker.allowsMultipleSelection = true
+        picker.canChooseDirectories = false
+        picker.prompt = "Choose"
+        guard picker.runModal() == .OK else { return }
+        let choices = (registry.choices(for: picker.urls) + registry.pdfTools(for: picker.urls))
+            .reduce(into: [ConversionChoice]()) { list, choice in
+                if !list.contains(choice) { list.append(choice) }
+            }
+        let alert = NSAlert()
+        guard !choices.isEmpty else {
+            alert.messageText = "No shared conversion is available"
+            alert.informativeText = "Choose supported files with a common output or check Conversion engines in the menu bar."
+            alert.runModal()
+            return
+        }
+        alert.messageText = "Choose a conversion or tool"
+        alert.informativeText = picker.urls.count == 1 ? picker.urls[0].lastPathComponent : "\(picker.urls.count) files selected"
+        let formats = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 260, height: 28))
+        formats.addItems(withTitles: choices.map(\.label))
+        formats.setAccessibilityLabel("Output format or tool")
+        alert.accessoryView = formats
+        alert.addButton(withTitle: "Continue")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn, choices.indices.contains(formats.indexOfSelectedItem) else { return }
+        var session = PickerSession(sources: picker.urls, choices: choices)
+        do {
+            if let requests = try session.select(choices[formats.indexOfSelectedItem], droppedURLs: picker.urls) {
+                dragMonitor.submit(requests)
+            }
+        } catch {
+            NSAlert(error: error).runModal()
+        }
     }
 
     @objc private func quitApp() {

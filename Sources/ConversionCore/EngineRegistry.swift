@@ -28,6 +28,14 @@ public struct EngineRegistry: Sendable {
         }
     }
 
+    public func pdfTools(for urls: [URL]) -> [ConversionChoice] {
+        guard !urls.isEmpty, urls.allSatisfy({ $0.isFileURL && FileFormat(fileExtension: $0.pathExtension) == .pdf }) else { return [] }
+        let tools: [ConversionChoice] = urls.count == 1
+            ? [.compressPDF, .metadataPDF, .organizePDF, .splitPDF]
+            : [.compressPDF, .mergePDF, .splitPDF]
+        return tools.filter { engine(source: .pdf, choice: $0) != nil }
+    }
+
     public func targets(for urls: [URL]) -> [FileFormat] {
         guard !urls.isEmpty else { return [] }
         return FileFormat.allCases.filter { target in

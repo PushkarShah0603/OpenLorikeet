@@ -2,6 +2,17 @@ import AppKit
 import ApplicationServices
 import ConversionCore
 
+enum DragWheelMode: Equatable {
+    case convert, pdfTools
+
+    static var current: Self? {
+        let flags = NSEvent.modifierFlags
+        if flags.contains(.command) { return .pdfTools }
+        if flags.contains(.shift) { return .convert }
+        return nil
+    }
+}
+
 /// Observes without consuming Finder events. No Accessibility prompt is raised.
 @MainActor
 final class DragMonitor {
@@ -24,6 +35,7 @@ final class DragMonitor {
     private var cachedGeneration: Int?
     private var cachedURLs: [URL] = []
     private var wheelAnchor: NSPoint?
+    private var wheelMode: DragWheelMode?
 
     func start() {
         guard timer == nil, !isStopping else { return }
@@ -53,11 +65,9 @@ final class DragMonitor {
             self.trigger.cancel()
             self.wheelAnchor = nil
             self.target.hide()
+            if self.tracked.isEmpty { self.feedback.hide() }
             Task {
-                await self.queue.submit(requests)
-                guard !self.isStopping else { return }
-                self.tracked.append(contentsOf: requests)
-                self.trackJobs()
+                self.submit(requests)
             }
         }
         target.onCancel = { [weak self] in self?.cancel() }
@@ -68,6 +78,24 @@ final class DragMonitor {
         feedback.onCancel = { [weak self] in
             guard let self else { return }
             Task { await self.queue.cancelAll() }
+        }
+    }
+
+    func submit(_ requests: [ConversionRequest]) {
+        guard !isStopping else { return }
+        let configured = requests.compactMap { request in
+            do { return try PDFToolDialog.configure(request) }
+            catch {
+                NSAlert(error: error).runModal()
+                return nil
+            }
+        }
+        guard !configured.isEmpty else { return }
+        Task {
+            await queue.submit(configured)
+            guard !isStopping else { return }
+            tracked.append(contentsOf: configured)
+            trackJobs()
         }
     }
 
@@ -115,18 +143,19 @@ final class DragMonitor {
     private func cancel() {
         trigger.cancel()
         wheelAnchor = nil
+        wheelMode = nil
         target.hide()
         if tracked.isEmpty { feedback.hide() }
     }
 
     private func tick() {
         let pressed = NSEvent.pressedMouseButtons & 1 != 0
-        let shift = NSEvent.modifierFlags.contains(.shift)
+        let mode = DragWheelMode.current
         let generation = pasteboard.changeCount
         let previousURLs = cachedURLs
         // A drag source may publish URLs lazily without advancing changeCount.
-        // Read them only while Shift and the left button are held.
-        if !pressed || !shift {
+        // Read them only while a wheel modifier and the left button are held.
+        if !pressed || mode == nil {
             cachedGeneration = nil
             cachedURLs = []
         } else if generation != cachedGeneration || cachedURLs.isEmpty {
@@ -134,16 +163,21 @@ final class DragMonitor {
             cachedGeneration = generation
         }
         let wasVisible = trigger.isVisible
-        let visible = trigger.update(pressed: pressed, shift: shift, generation: generation, hasFiles: !cachedURLs.isEmpty)
-        if visible {
-            if !wasVisible || cachedURLs != previousURLs {
+        let visible = trigger.update(pressed: pressed, shift: mode != nil, generation: generation, hasFiles: !cachedURLs.isEmpty)
+        if visible, let mode {
+            if !wasVisible || cachedURLs != previousURLs || mode != wheelMode {
                 let point = wheelAnchor ?? NSEvent.mouseLocation
                 wheelAnchor = point
-                let available = target.show(near: point, urls: cachedURLs)
-                if tracked.isEmpty { feedback.ready(at: point, fileCount: cachedURLs.count, available: available) }
+                wheelMode = mode
+                let available = target.show(near: point, urls: cachedURLs, mode: mode)
+                if tracked.isEmpty {
+                    if mode == .pdfTools && !available { feedback.hide() }
+                    else { feedback.ready(at: point, fileCount: cachedURLs.count, available: available, tools: mode == .pdfTools) }
+                }
             }
         } else if wasVisible {
             wheelAnchor = nil
+            wheelMode = nil
             if tracked.isEmpty { feedback.hide() }
             // Let AppKit finish performDragOperation before ordering out the panel.
             if !pressed {

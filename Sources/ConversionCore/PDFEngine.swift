@@ -15,7 +15,7 @@ public struct PDFEngine: ConversionEngine {
     public func supports(source: FileFormat, choice: ConversionChoice) -> Bool {
         switch choice {
         case .format(let target): supports(source: source, target: target)
-        case .mergePDF, .splitPDF: source == .pdf
+        case .mergePDF, .splitPDF, .compressPDF, .metadataPDF, .organizePDF: source == .pdf
         default: false
         }
     }
@@ -43,6 +43,12 @@ public struct PDFEngine: ConversionEngine {
         }
 
         let document = try load(request.source)
+        switch request.choice {
+        case .compressPDF, .metadataPDF, .organizePDF:
+            try writeEdited(document, request: request, to: output)
+            return
+        default: break
+        }
         if producesFolder(for: request) {
             try FileManager.default.createDirectory(at: output, withIntermediateDirectories: false)
             for index in 0..<document.pageCount {
@@ -99,6 +105,59 @@ public struct PDFEngine: ConversionEngine {
         }
         guard readablePages > 0 else { throw WorkerError.engineUnavailable("No readable text was found in the PDF.") }
         try await WordWriter.write(blocks, to: output)
+    }
+
+    public func editingInfo(for url: URL) throws -> (pages: Int, metadata: PDFMetadata) {
+        let document = try load(url)
+        let attributes = document.documentAttributes ?? [:]
+        let keywords = (attributes[PDFDocumentAttribute.keywordsAttribute] as? [String])
+            ?? (attributes[PDFDocumentAttribute.keywordsAttribute] as? String).map { [$0] } ?? []
+        let metadata = PDFMetadata(title: attributes[PDFDocumentAttribute.titleAttribute] as? String ?? "",
+                                   author: attributes[PDFDocumentAttribute.authorAttribute] as? String ?? "",
+                                   subject: attributes[PDFDocumentAttribute.subjectAttribute] as? String ?? "",
+                                   keywords: keywords)
+        return (document.pageCount, metadata)
+    }
+
+    private func writeEdited(_ document: PDFDocument, request: ConversionRequest, to output: URL) throws {
+        let expectedPages: Int
+        switch (request.choice, request.pdfOptions) {
+        case (.compressPDF, nil):
+            expectedPages = document.pageCount
+            let options: [PDFDocumentWriteOption: Any] = [.optimizeImagesForScreenOption: true, .saveImagesAsJPEGOption: true]
+            guard document.write(to: output, withOptions: options) else { throw WorkerError.invalidOutput }
+            let originalSize = try request.source.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
+            let outputSize = try output.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
+            guard outputSize < originalSize else {
+                throw WorkerError.engineUnavailable("Screen optimization could not make this PDF smaller.")
+            }
+        case (.metadataPDF, .metadata(let metadata)):
+            expectedPages = document.pageCount
+            var attributes = document.documentAttributes ?? [:]
+            attributes[PDFDocumentAttribute.titleAttribute] = metadata.title.isEmpty ? nil : metadata.title
+            attributes[PDFDocumentAttribute.authorAttribute] = metadata.author.isEmpty ? nil : metadata.author
+            attributes[PDFDocumentAttribute.subjectAttribute] = metadata.subject.isEmpty ? nil : metadata.subject
+            attributes[PDFDocumentAttribute.keywordsAttribute] = metadata.keywords.isEmpty ? nil : metadata.keywords
+            document.documentAttributes = attributes
+            guard document.write(to: output) else { throw WorkerError.invalidOutput }
+        case (.organizePDF, .pageOrder(let order)):
+            guard !order.isEmpty, Set(order).count == order.count,
+                  order.allSatisfy({ (0..<document.pageCount).contains($0) }) else { throw WorkerError.invalidInput }
+            expectedPages = order.count
+            var current = Array(0..<document.pageCount)
+            for (index, page) in order.enumerated() {
+                try Task.checkCancellation()
+                guard let from = current.firstIndex(of: page) else { throw WorkerError.invalidInput }
+                if from != index {
+                    document.exchangePage(at: from, withPageAt: index)
+                    current.swapAt(from, index)
+                }
+            }
+            while document.pageCount > expectedPages { document.removePage(at: document.pageCount - 1) }
+            guard document.write(to: output) else { throw WorkerError.invalidOutput }
+        default: throw WorkerError.invalidInput
+        }
+        guard PDFDocument(url: output)?.pageCount == expectedPages else { throw WorkerError.invalidOutput }
     }
 
     private func load(_ url: URL) throws -> PDFDocument {

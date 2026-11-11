@@ -35,19 +35,20 @@ function testDemo(reduced) {
   assert.equal(controls.length, 4, "Demo exposes the four documented actions");
   const demo = element();
   const reset = element();
+  const play = element();
   const status = element();
   const title = element();
   const classes = new Set();
-  demo.classList = { add: value => classes.add(value), remove: value => classes.delete(value) };
+  demo.classList = { add: value => classes.add(value), remove: (...values) => values.forEach(value => classes.delete(value)) };
   demo.querySelectorAll = () => controls;
 
-  const selectors = { "#demo": demo, "#demo-title": title, "#demo-status": status, "#reset-demo": reset };
+  const selectors = { "#demo": demo, "#demo-title": title, "#demo-status": status, "#reset-demo": reset, "#play-demo": play };
   const timers = new Map();
   let nextTimer = 0;
   const window = {
     matchMedia: () => ({ matches: reduced }),
     setTimeout(callback, delay) {
-      assert.equal(delay, reduced ? 0 : 420);
+      assert.equal(delay, reduced ? 0 : classes.has("is-playing") ? 950 : 420);
       timers.set(++nextTimer, callback);
       return nextTimer;
     },
@@ -75,8 +76,20 @@ function testDemo(reduced) {
   assert.equal(timers.size, 0, "Reset cancels pending completion");
   assert.equal(title.textContent, "Choose an output");
   assert(!classes.has("is-done"));
+
+  play.click();
+  assert(play.disabled && classes.has("is-playing"));
+  timers.get(nextTimer)();
+  assert.equal(title.textContent, "Converting to PDF");
+  assert(!play.disabled && !classes.has("is-playing"));
+  timers.get(nextTimer)();
+  assert.equal(status.textContent, "postcard.pdf");
+  play.click();
+  reset.click();
+  assert.equal(timers.size, 0, "Reset cancels the walkthrough");
+  assert(!classes.has("is-playing") && !play.disabled);
 }
 
 testDemo(false);
 testDemo(true);
-console.log("PASS: site links, asset paths, picker actions, reset, and reduced-motion timing");
+console.log("PASS: site links, asset paths, picker actions, walkthrough, reset, and reduced-motion timing");

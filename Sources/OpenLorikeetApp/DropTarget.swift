@@ -11,14 +11,15 @@ final class DropTargetController {
     private var view: RadialDropView?
 
     @discardableResult
-    func show(near point: NSPoint, urls: [URL]) -> Bool {
+    func show(near point: NSPoint, urls: [URL], mode: DragWheelMode) -> Bool {
+        let choices = mode == .pdfTools ? registry.pdfTools(for: urls) : registry.choices(for: urls)
+        if mode == .pdfTools && choices.isEmpty { hide(); return false }
         if panel == nil { makePanel() }
         guard let panel, let view else { return false }
         let screen = NSScreen.screens.first { $0.frame.contains(point) } ?? NSScreen.main
         let visible = screen?.visibleFrame ?? NSRect(x: point.x - 200, y: point.y - 200, width: 400, height: 400)
         panel.setFrame(RadialGeometry.frame(near: point, in: visible), display: false)
-        let choices = registry.choices(for: urls)
-        view.configure(urls: urls, choices: choices)
+        view.configure(urls: urls, choices: choices, mode: mode)
         panel.orderFrontRegardless()
         return !choices.isEmpty
     }
@@ -52,6 +53,7 @@ private final class RadialDropView: NSView {
     var onCancel: (() -> Void)?
     var onHover: ((ConversionChoice?, NSPoint) -> Void)?
     private var session = PickerSession(sources: [])
+    private var mode: DragWheelMode = .convert
     private var selected: Int? {
         didSet {
             needsDisplay = true
@@ -78,7 +80,8 @@ private final class RadialDropView: NSView {
     }
     required init?(coder: NSCoder) { nil }
 
-    func configure(urls: [URL], choices: [ConversionChoice]) {
+    func configure(urls: [URL], choices: [ConversionChoice], mode: DragWheelMode) {
+        self.mode = mode
         session = PickerSession(sources: urls, choices: choices)
         selected = nil
         needsDisplay = true
@@ -106,21 +109,44 @@ private final class RadialDropView: NSView {
                 (selected == index ? NSColor.systemGreen.withAlphaComponent(0.9)
                                   : NSColor(calibratedWhite: 0.14, alpha: 0.96)).setFill()
                 path.fill()
+                path.lineWidth = 1
+                path.lineJoinStyle = .round
+                NSColor.white.withAlphaComponent(selected == index ? 0.32 : 0.12).setStroke()
+                path.stroke()
                 let theta = angle * .pi / 180
                 let radius = (g.innerRadius + g.outerRadius) / 2
-                drawCentered(session.choices[index].label,
-                             at: CGPoint(x: g.center.x + cos(theta) * radius, y: g.center.y + sin(theta) * radius),
-                             size: n > 7 ? 10 : 13, color: .white)
+                let point = CGPoint(x: g.center.x + cos(theta) * radius, y: g.center.y + sin(theta) * radius)
+                let choice = session.choices[index]
+                if mode == .pdfTools, let icon = toolIcon(choice) {
+                    icon.draw(in: CGRect(x: point.x - 10, y: point.y + 1, width: 20, height: 20))
+                    drawCentered(choice.label, at: CGPoint(x: point.x, y: point.y - 10), size: 12, color: .white)
+                } else {
+                    drawCentered(choice.label, at: point, size: n > 7 ? 10 : 13, color: .white)
+                }
             }
         }
         let disk = NSRect(x: g.center.x - g.innerRadius + 5, y: g.center.y - g.innerRadius + 5,
                           width: g.innerRadius * 2 - 10, height: g.innerRadius * 2 - 10)
         NSColor(calibratedWhite: 0.08, alpha: 0.98).setFill()
         NSBezierPath(ovalIn: disk).fill()
-        let title = selected.map { session.choices[$0].label } ?? (n == 0 ? "No formats" : "Choose format")
+        let title = selected.map { session.choices[$0].label } ?? (n == 0 ? "No formats" : mode == .pdfTools ? "PDF tools" : "Choose format")
         drawCentered(title, at: CGPoint(x: g.center.x, y: g.center.y + 12), size: n > 7 ? 10 : 13, color: .white)
-        drawCentered(n == 0 ? "Check selected files" : "Drop on a format",
+        drawCentered(n == 0 ? "Check selected files" : mode == .pdfTools ? "Drop on a tool" : "Drop on a format",
                      at: CGPoint(x: g.center.x, y: g.center.y - 9), size: 10, color: .lightGray)
+    }
+
+    private func toolIcon(_ choice: ConversionChoice) -> NSImage? {
+        let name: String
+        switch choice {
+        case .compressPDF: name = "arrow.down.right.and.arrow.up.left"
+        case .metadataPDF: name = "tag"
+        case .organizePDF: name = "square.stack"
+        case .mergePDF: name = "arrow.triangle.merge"
+        case .splitPDF: name = "document.on.document"
+        default: return nil
+        }
+        return NSImage(systemSymbolName: name, accessibilityDescription: nil)?
+            .withSymbolConfiguration(.init(hierarchicalColor: .white))
     }
 
     private func drawCentered(_ text: String, at point: CGPoint, size: Double, color: NSColor) {
@@ -131,7 +157,7 @@ private final class RadialDropView: NSView {
     }
 
     private func updateSelection(_ sender: NSDraggingInfo) -> NSDragOperation {
-        guard !session.consumed, NSEvent.modifierFlags.contains(.shift),
+        guard !session.consumed, DragWheelMode.current == mode,
               sender.draggingSourceOperationMask.contains(.copy) else {
             selected = nil
             return []

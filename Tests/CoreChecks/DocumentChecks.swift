@@ -40,6 +40,17 @@ func checkDocumentRoutes() async throws {
     }
     check(try String(contentsOf: text, encoding: .utf8).contains("Unicode café & <tag>\tcolumn\nTable cell"), "DOCX text preserves order, tabs, Unicode, and entities")
     check(try String(contentsOf: html, encoding: .utf8).contains("&amp; &lt;tag&gt;"), "HTML escapes document text")
+    let builtIn = EngineRegistry.local().engineStatuses.contains { $0.name == "macOS Word to PDF" && $0.availability == .ready }
+    check(builtIn, "The macOS Word renderer is always registered")
+    let pdfJob = try ConversionRequest(source: word, targetFormat: .pdf)
+    await queue.submit([pdfJob])
+    await queue.waitUntilIdle()
+    let pdfState = await queue.state(for: pdfJob.id)
+    guard case .succeeded(let pdfURL) = pdfState, let rendered = PDFDocument(url: pdfURL) else {
+        fatalError("Word to PDF failed: \(String(describing: pdfState))")
+    }
+    check(rendered.pageCount == 2 && rendered.page(at: 0)?.string?.contains("Table cell") == true &&
+          rendered.page(at: 1)?.string?.contains("Second page") == true, "Word PDF preserves text, tables, and explicit page breaks")
     let damaged = folder.appendingPathComponent("Corrupt.docx")
     try Data("not a ZIP".utf8).write(to: damaged)
     let bad = try ConversionRequest(source: damaged, targetFormat: .txt)

@@ -38,6 +38,24 @@ func checkImageRoutes() async throws {
             let media = try await ProcessRunner.run(executable: URL(fileURLWithPath: "/usr/bin/unzip"),
                                                    arguments: ["-l", output.path], directory: folder)
             check(media.stdout.contains("word/media/image1.png"), "Embedded media present")
+            let pdfJob = try ConversionRequest(source: output, targetFormat: .pdf)
+            await queue.submit([pdfJob])
+            await queue.waitUntilIdle()
+            guard case .succeeded(let wordPDF) = await queue.state(for: pdfJob.id),
+                  let page = PDFDocument(url: wordPDF)?.page(at: 0)?.pageRef else {
+                fatalError("Word to PDF could not render an image-only document")
+            }
+            let box = page.getBoxRect(.mediaBox)
+            let preview = CGContext(data: nil, width: 306, height: 396, bitsPerComponent: 8, bytesPerRow: 0,
+                                    space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGImageAlphaInfo.none.rawValue)!
+            let bounds = CGRect(x: 0, y: 0, width: 306, height: 396)
+            preview.setFillColor(CGColor(gray: 1, alpha: 1))
+            preview.fill(bounds)
+            preview.scaleBy(x: bounds.width / box.width, y: bounds.height / box.height)
+            preview.drawPDFPage(page)
+            let pixels = preview.data!.assumingMemoryBound(to: UInt8.self)
+            check(UnsafeBufferPointer(start: pixels, count: preview.bytesPerRow * preview.height).contains { $0 < 225 },
+                  "The Word PDF contains the embedded image")
         default:
             guard let source = CGImageSourceCreateWithURL(output as CFURL, nil),
                   let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { fatalError("Image output is unreadable") }

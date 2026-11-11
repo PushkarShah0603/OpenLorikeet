@@ -59,6 +59,62 @@ func checkPDFRoutes() async throws {
     let word = try await ProcessRunner.run(executable: URL(fileURLWithPath: "/usr/bin/unzip"), arguments: ["-p", files[4].path, "word/document.xml"], directory: folder)
     check(word.stdout.contains("<w:t xml:space=\"preserve\">Page one editable text"), "PDF text becomes editable Word runs")
     check(word.stdout.contains("<w:tbl>"), "Consistently separated PDF columns become an editable table")
+    check(registry.pdfTools(for: [first]) == [.compressPDF, .metadataPDF, .organizePDF, .splitPDF], "Single PDF tools")
+    check(registry.pdfTools(for: [first, second]) == [.compressPDF, .mergePDF, .splitPDF], "Batch PDF tools")
+    check(registry.pdfTools(for: [first, folder.appendingPathComponent("image.png")]).isEmpty, "PDF tools require a PDF selection")
+    check(try PDFOptions.pageIndices("3-2, 1", count: 3) == [2, 1, 0], "Reversed ranges preserve order")
+    for invalid in ["", "0", "4", "1,1", "1-", "1,,2"] {
+        check((try? PDFOptions.pageIndices(invalid, count: 3)) == nil, "Invalid page order: \(invalid)")
+    }
+    let metadata = PDFMetadata(title: "Lab notes", author: "OpenLorikeet", subject: "PDF check", keywords: ["lab", "manual"])
+    let metadataJob = try ConversionRequest(inputs: [first], choice: .metadataPDF, pdfOptions: .metadata(metadata))
+    let organizeJob = try ConversionRequest(inputs: [files[0]], choice: .organizePDF, pdfOptions: .pageOrder([2, 0]))
+    let original = try Data(contentsOf: first)
+    let originalMerged = try Data(contentsOf: files[0])
+    await queue.submit([metadataJob, organizeJob])
+    await queue.waitUntilIdle()
+    guard case .succeeded(let edited) = await queue.state(for: metadataJob.id),
+          case .succeeded(let organized) = await queue.state(for: organizeJob.id),
+          let reordered = PDFDocument(url: organized) else { fatalError("PDF editing tools failed") }
+    let inspected = try PDFEngine().editingInfo(for: edited)
+    check(inspected.pages == 2 && inspected.metadata.title == metadata.title &&
+          inspected.metadata.author == metadata.author && inspected.metadata.subject == metadata.subject &&
+          inspected.metadata.keywords == metadata.keywords, "PDF metadata survives a fresh read")
+    check(reordered.pageCount == 2 && reordered.page(at: 0)?.string?.contains("Page three appended") == true &&
+          reordered.page(at: 1)?.string?.contains("Page one editable text") == true, "PDF organize reorders pages and drops omitted ones")
+    check(try Data(contentsOf: first) == original && Data(contentsOf: files[0]) == originalMerged,
+          "PDF tools leave both originals byte-identical")
+
+    let large = folder.appendingPathComponent("Image-heavy.pdf")
+    let side = 1_600
+    let bitmap = CGContext(data: nil, width: side, height: side, bitsPerComponent: 8, bytesPerRow: 0,
+                           space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                           bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!
+    let pixels = bitmap.data!.assumingMemoryBound(to: UInt8.self)
+    var seed: UInt32 = 129
+    for index in 0..<(bitmap.bytesPerRow * side) {
+        seed = 1_664_525 &* seed &+ 1_013_904_223
+        pixels[index] = UInt8(truncatingIfNeeded: seed >> 24)
+    }
+    var paper = CGRect(x: 0, y: 0, width: 400, height: 420)
+    let consumer = CGDataConsumer(url: large as CFURL)!
+    let photoPDF = CGContext(consumer: consumer, mediaBox: &paper, nil)!
+    photoPDF.beginPDFPage(nil)
+    photoPDF.draw(bitmap.makeImage()!, in: CGRect(x: 0, y: 0, width: 400, height: 400))
+    drawText("Selectable caption", in: photoPDF, x: 8, y: 404, size: 12)
+    photoPDF.endPDFPage()
+    photoPDF.closePDF()
+    let compression = try ConversionRequest(inputs: [large], choice: .compressPDF)
+    await queue.submit([compression])
+    await queue.waitUntilIdle()
+    let compressionState = await queue.state(for: compression.id)
+    guard case .succeeded(let smaller) = compressionState else {
+        fatalError("Image-heavy PDF compression failed: \(String(describing: compressionState))")
+    }
+    check(try Data(contentsOf: smaller).count < Data(contentsOf: large).count &&
+          PDFDocument(url: smaller)?.string?.contains("Selectable caption") == true,
+          "Compression shrinks image-heavy PDFs and keeps text selectable")
+    print("PASS: PDF tool selection, page order parsing, metadata editing, page organization, and compression")
 
     let croppedURL = folder.appendingPathComponent("Rotated crop.pdf")
     // Encode the boxes and rotation directly so the fixture is independent of

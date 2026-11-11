@@ -44,7 +44,7 @@ public struct ImageEngine: ConversionEngine {
         switch choice {
         case .format(let target): supports(source: source, target: target)
         case .compress, .fit500KB, .resize1600: Self.encoders.contains(source)
-        case .mergePDF, .splitPDF: false
+        case .mergePDF, .splitPDF, .compressPDF, .metadataPDF, .organizePDF: false
         }
     }
 

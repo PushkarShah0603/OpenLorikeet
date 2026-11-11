@@ -1,7 +1,7 @@
 # Finder and Desktop acceptance
 
 ## Behavior
-The background app samples left-button state, Shift, and the drag pasteboard at 30 Hz. A fresh file drag plus Shift reveals a radial format picker near the pointer. The wheel stays anchored so the pointer can move onto a segment. Its frame is clamped to the selected display. Shift release hides it; dropping outside also dismisses it. Normal drags and Shift-clicks with stale pasteboard contents do not activate it.
+The background app samples left-button state, modifiers, and the drag pasteboard at 30 Hz. A fresh file drag plus Shift reveals a radial format picker near the pointer. Command during a PDF drag opens the PDF tools wheel. The wheel stays anchored so the pointer can move onto a segment. Its frame is clamped to the selected display. Releasing the modifier or dropping outside dismisses it.
 
 The picker lists formats and actions supported by ready engines across the selected files. Dropping on a segment submits the requests. The top-edge panel shows the job status and offers Open or Show in Finder once a validated output is saved. Feathers fall after a successful batch when celebrations are enabled and Reduce Motion is off. Folders, web URLs, text drags, and unavailable files are rejected.
 
@@ -25,5 +25,7 @@ References:
 8. Cancel with Escape, with and without pre-existing Accessibility trust. Confirm no stuck overlay after mouse/Shift release. Escape may remain unavailable globally without trust.
 9. Test successful, failed, cancelled, and mixed-result batches. Toggle feather celebrations and Reduce Motion. Confirm only successful batches celebrate.
 10. Try Launch at login from the menu after installing the app. Quit using the menu bar and check that active jobs are cancelled.
+11. Command-drag one PDF and confirm Compress, Metadata, Organize, and Split. Edit the title and verify it in the saved copy. Organize a multipage PDF with a list such as `3, 1` and check that the omitted page is absent. Repeat with multiple PDFs and check Merge.
+12. Choose **Convert Files…** from the menu bar, select a DOCX, and save a PDF. Compare tables and images in the output with the source. Verify the 3D lorikeet responds to hover and conversion results, and stays still with Reduce Motion.
 
 Automated checks cover gesture-state transitions and release/cancellation suppression. They do not establish real Finder drag delivery, modifier visibility under privacy controls, or AppKit drop callback timing. Record these results before distribution.
