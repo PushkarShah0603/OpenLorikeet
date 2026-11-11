@@ -1,7 +1,6 @@
 """Local conversions. Every job stages, validates, and exclusively publishes its copy."""
 from pathlib import Path
 import csv
-import io
 import os
 import shutil
 import subprocess
@@ -74,7 +73,11 @@ def publish(source, desired):
     """Exclusive file creation avoids overwriting even with competing processes."""
     desired = Path(desired)
     for index in range(10000):
-        target = desired if index == 0 else desired.with_name(f'{desired.stem} ({index}){desired.suffix}')
+        suffix = '' if index == 0 else f' ({index})'
+        stem = desired.stem
+        while len((stem + suffix + desired.suffix).encode('utf-8')) > 255:
+            stem = stem[:-1]
+        target = desired.with_name(stem + suffix + desired.suffix)
         try:
             with target.open('xb') as out:
                 try:
@@ -188,17 +191,25 @@ def convert(paths, action, options=None):
             elif ext in ('.png', '.jpg', '.jpeg', '.webp', '.bmp', '.tiff'):
                 from PIL import Image, ImageOps
                 with Image.open(source) as raw:
+                    if raw.width * raw.height > 64000000 or getattr(raw, 'n_frames', 1) != 1:
+                        raise ValueError('Choose a single image with at most 64 million pixels.')
                     image = ImageOps.exif_transpose(raw)
                     if action == 'docx':
                         from docx import Document
                         from docx.shared import Inches
-                        png = work / 'picture.png'; image.save(png)
+                        png = work / 'picture.png'; image.convert('RGBA').save(png)
                         doc = Document(); doc.add_picture(str(png), width=Inches(6)); doc.save(output)
-                    elif action == 'pdf': image.convert('RGB').save(output, 'PDF', resolution=150)
+                    elif action == 'pdf':
+                        rgba = image.convert('RGBA')
+                        white = Image.new('RGB', image.size, 'white')
+                        white.paste(rgba, mask=rgba.getchannel('A'))
+                        white.save(output, 'PDF', resolution=150)
                     else:
                         if action == 'image-resize': image.thumbnail((1600, 1600)); suffix = ' resized'
                         if out_ext == 'jpg':
                             rgba = image.convert('RGBA'); white = Image.new('RGB', image.size, 'white'); white.paste(rgba, mask=rgba.getchannel('A')); image = white
+                        if out_ext == 'png' and image.mode not in ('1', 'L', 'LA', 'P', 'RGB', 'RGBA', 'I', 'I;16'):
+                            image = image.convert('RGBA')
                         image.save(output, quality=82, optimize=True)
                         if action == 'image-compress':
                             suffix = ' compressed'
@@ -208,20 +219,41 @@ def convert(paths, action, options=None):
                 else:
                     from docx import Document
                     doc = Document(source)
-                    text = '\n'.join(p.text for p in doc.paragraphs)
+                    from docx.table import Table
+                    blocks = list(doc.iter_inner_content())
+                    text = '\n'.join('\n'.join('\t'.join(cell.text for cell in row.cells) for row in block.rows) if isinstance(block, Table) else block.text for block in blocks)
                     if action == 'html':
                         import html
-                        text = '<!doctype html><meta charset="utf-8"><title>Document</title>' + ''.join('<p>' + html.escape(p.text) + '</p>' for p in doc.paragraphs)
+                        body = []
+                        for block in blocks:
+                            if isinstance(block, Table):
+                                body.append('<table>' + ''.join('<tr>' + ''.join('<td>' + html.escape(cell.text) + '</td>' for cell in row.cells) + '</tr>' for row in block.rows) + '</table>')
+                            else: body.append('<p>' + html.escape(block.text) + '</p>')
+                        text = '<!doctype html><meta charset="utf-8"><title>Document</title>' + ''.join(body)
                     output.write_text(text, encoding='utf-8')
             elif ext in ('.csv', '.tsv', '.xlsx'):
-                from openpyxl import Workbook, load_workbook
+                if action == 'xlsx' or ext == '.xlsx':
+                    from openpyxl import Workbook, load_workbook
+                cell_budget = 1000000
+                def bounded_rows(rows):
+                    nonlocal cell_budget
+                    result = []
+                    for row in rows:
+                        cell_budget -= len(row)
+                        if len(result) >= 100000 or len(row) > 1024 or cell_budget < 0 or any(len(str(v or '')) > 32767 for v in row):
+                            raise ValueError('The table exceeds supported row, column, or cell limits.')
+                        result.append(row)
+                    return result
                 if ext == '.xlsx':
                     book = load_workbook(source, read_only=True, data_only=True)
-                    try: sheets = [(s.title, list(s.values)) for s in book.worksheets]
+                    try:
+                        if len(book.worksheets) > 100 or any((sheet.max_row or 0) > 100000 or (sheet.max_column or 0) > 1024 for sheet in book.worksheets):
+                            raise ValueError('The workbook exceeds supported sheet dimensions.')
+                        sheets = [(sheet.title, bounded_rows(sheet.values)) for sheet in book.worksheets]
                     finally: book.close()
                 else:
                     with source.open(encoding='utf-8-sig', newline='') as stream:
-                        sheets = [(source.stem, list(csv.reader(stream, delimiter='\t' if ext == '.tsv' else ',')))]
+                        sheets = [(source.stem, bounded_rows(csv.reader(stream, delimiter='\t' if ext == '.tsv' else ',', strict=True)))]
                 if action == 'xlsx':
                     book = Workbook(); sheet = book.active
                     for row in sheets[0][1]:

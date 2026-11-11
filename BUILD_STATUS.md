@@ -34,3 +34,7 @@ GitHub run 43005543458 confirms Windows and Linux build/test/render jobs succeed
 ## Published packages and installers
 
 Run 43009000936 passed all platform jobs and published the first complete portable development release, desktop-43009000936-1. Windows setup EXE and Debian/Ubuntu .deb packaging have now been added, including install, installed-app self-test, and uninstall checks in native CI. Website selection prefers installers when present while preserving the existing portable download fallback. Native installer builds still need the next pushed run.
+
+## Final review
+
+See [FINAL_REVIEW.md](docs/FINAL_REVIEW.md) for the final cross-platform code, workflow, installer, download and website review, corrected defects, exact checks and remaining release conditions. The review fixes still require a pushed native CI run.

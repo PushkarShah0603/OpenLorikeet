@@ -104,7 +104,7 @@ runInNewContext(platformScript, {document: {
 }});
 platformButtons[1].click();
 assert.match(platformElements['#platform-title'].textContent, /Windows/);
-assert.match(platformElements['#platform-command'].textContent, /py -3.12/);
+assert.match(platformElements['#platform-command'].textContent, /setup wizard/);
 assert.match(platformElements['#platform-link'].href, /releases$/);
 assert.equal(platformButtons[0].attributes.get('aria-pressed'), 'false');
 platformButtons[2].click();
@@ -132,6 +132,7 @@ const releaseAssets = ['OpenLorikeet-Windows-x64.zip','OpenLorikeet-Linux-x64.ta
 const live = await checkDownloads([{draft:true,assets:releaseAssets},{draft:false,assets:releaseAssets}]);
 assert.match(live['#platform-link'].href, /download\/desktop-test\/OpenLorikeet-Windows-x64.zip$/);
 assert.match(live['#platform-link'].textContent, /^Download /);
+assert.match(live['#platform-command'].textContent, /entire archive/);
 for (const [data, offline] of [[[], false], [[{assets:releaseAssets.slice(0,1)}], false], [[], true]]) {
   const fallback = await checkDownloads(data, offline);
   assert.match(fallback['#platform-link'].href, /releases$/);
@@ -144,6 +145,7 @@ const installRelease = [{draft:false, assets:[...releaseAssets,...installers]}];
 const windowsInstall = await checkDownloads(installRelease);
 assert.match(windowsInstall['#platform-link'].href, /-Setup.exe$/);
 assert.match(windowsInstall['#platform-availability'].textContent, /setup wizard/);
+assert.match(windowsInstall['#platform-command'].textContent, /setup wizard/);
 const linuxInstall = await checkDownloads(installRelease, false, 'linux');
 assert.match(linuxInstall['#platform-link'].href, /Linux-x64.deb$/);
 assert.match(linuxInstall['#platform-availability'].textContent, /Debian\/Ubuntu/);

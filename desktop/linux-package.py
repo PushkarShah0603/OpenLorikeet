@@ -18,7 +18,7 @@ Section: utils
 Priority: optional
 Architecture: amd64
 Maintainer: Pushkar <shahpushkar0603@gmail.com>
-Depends: libc6 (>= 2.35), libegl1, libopengl0, libxcb-cursor0, libxkbcommon-x11-0, libx11-6
+Depends: libc6 (>= 2.35), libegl1, libopengl0, libxcb-cursor0, libxkbcommon-x11-0, libx11-6, libx11-xcb1, libxcb-icccm4, libxcb-keysyms1, libxcb-image0, libxcb-render-util0
 Recommends: libreoffice-writer
 Homepage: https://github.com/PushkarShah0603/OpenLorikeet
 Description: Local file converter with an animated desktop companion

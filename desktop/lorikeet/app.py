@@ -105,6 +105,13 @@ class Wheel(QWidget):
         elif not self.paths: self.owner.pick(self.tools)
     def keyPressEvent(self,event):
         if event.key()==Qt.Key_Escape: self.hide()
+        elif self.choices and event.key() in (Qt.Key_Left, Qt.Key_Up, Qt.Key_Right, Qt.Key_Down):
+            step = -1 if event.key() in (Qt.Key_Left, Qt.Key_Up) else 1
+            self.hover = (0 if step > 0 else len(self.choices)-1) if self.hover < 0 else (self.hover + step) % len(self.choices)
+            self.bird.look = True; self.update()
+        elif self.paths and self.hover >= 0 and event.key() in (Qt.Key_Return, Qt.Key_Enter):
+            self.submit(self.hover)
+        else: super().keyPressEvent(event)
     def dragEnterEvent(self,event):
         paths=[u.toLocalFile() for u in event.mimeData().urls() if u.isLocalFile() and Path(u.toLocalFile()).is_file()]
         if paths:
@@ -157,6 +164,9 @@ class App:
         paths,_=QFileDialog.getOpenFileNames(None,'Choose local files')
         if paths:self.wheel.reveal(tools,paths)
     def start(self,paths,action,options):
+        if self.jobs:
+            QMessageBox.information(None, 'OpenLorikeet', 'A conversion is already running. Wait for it to finish before starting another batch.')
+            return
         job=Job(list(paths),action,options); self.jobs.append(job)
         self.feedback.show_status('Converting locally…','working')
         job.signals.done.connect(lambda saved,errors:self.finished(job,saved,errors)); self.pool.start(job)

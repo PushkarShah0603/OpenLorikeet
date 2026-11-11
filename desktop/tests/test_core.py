@@ -59,4 +59,57 @@ class CoreTests(unittest.TestCase):
             self.assertEqual(sheet['A2'].value,'001'); self.assertEqual(sheet['B2'].data_type,'s')
             book.close()
 
+
+class ReviewRegressionTests(unittest.TestCase):
+    def test_transparent_image_pdf_has_white_background(self):
+        from PIL import Image
+        from pypdf import PdfReader
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp)/'transparent.png'
+            Image.new('RGBA', (40,40), (0,0,0,0)).save(source)
+            output = convert([source], 'pdf')[0]
+            pixel = PdfReader(output).pages[0].images[0].image.convert('RGB').getpixel((0,0))
+            self.assertTrue(all(value > 245 for value in pixel), pixel)
+
+    @unittest.skipUnless(importlib.util.find_spec('docx'), 'python-docx is not installed')
+    def test_word_table_text_survives_plain_exports(self):
+        from docx import Document
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp)/'table.docx'
+            doc = Document(); doc.add_paragraph('Before')
+            table = doc.add_table(rows=1, cols=1); table.cell(0,0).text = 'TABLE CONTENT'
+            doc.add_paragraph('After'); doc.save(source)
+            for target in ('txt', 'html'):
+                text = convert([source], target)[0].read_text(encoding='utf-8')
+                self.assertLess(text.index('Before'), text.index('TABLE CONTENT'))
+                self.assertLess(text.index('TABLE CONTENT'), text.index('After'))
+
+    def test_csv_quotes_and_limits(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source=Path(tmp)/'table.csv'
+            source.write_text('id,value\n001,"line 1\nline 2"\n', encoding='utf-8')
+            result=convert([source], 'tsv')[0].read_text(encoding='utf-8')
+            self.assertIn('001',result); self.assertIn('line 2',result)
+            source.write_text('"unclosed', encoding='utf-8')
+            with self.assertRaises(Exception): convert([source], 'tsv')
+            source.write_text('x'*32768, encoding='utf-8')
+            with self.assertRaisesRegex(ValueError, 'limits'): convert([source], 'tsv')
+
+    def test_long_unicode_output_name(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); source=root/'source'; source.write_text('copy')
+            result=publish(source, root/('é'*125+' converted.pdf'))
+            self.assertLessEqual(len(result.name.encode('utf-8')),255)
+            self.assertEqual(result.read_text(),'copy')
+
+    def test_cmyk_jpeg_converts_to_png(self):
+        from PIL import Image
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp)/'print.jpg'
+            Image.new('CMYK', (40,40), (0,255,255,0)).save(source)
+            output = convert([source], 'png')[0]
+            with Image.open(output) as image:
+                self.assertEqual(image.size, (40,40))
+                self.assertEqual(image.format, 'PNG')
+
 if __name__=='__main__': unittest.main()

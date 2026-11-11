@@ -1,8 +1,8 @@
 "use strict";
 const platforms = {
-  mac: { title: "macOS 15+", copy: "Native menu bar app. Shift-drag in Finder; Command-drag for PDF tools. Built locally on Apple silicon.", command: "./scripts/package.sh\nopen dist/OpenLorikeet.app", link: "https://github.com/PushkarShah0603/OpenLorikeet/releases", label: "Check releases ↗" },
-  windows: { title: "Windows 10 / 11 · x64", copy: "Tray app. Shift-drag a file or use Convert files from the tray. Install LibreOffice for Word-to-PDF. Development build; desktop acceptance testing is pending.", command: "py -3.12 -m pip install -r desktop/requirements.txt\npy -3.12 desktop/build.py", link: "https://github.com/PushkarShah0603/OpenLorikeet/releases", label: "View releases ↗" },
-  linux: { title: "Linux · x64", copy: "Installable tray app for Debian/Ubuntu x64. Shift-drag on X11; open the drop wheel from the tray on Wayland. GNOME may need a tray extension. Development build; desktop acceptance testing is pending.", command: "python3 -m venv .venv\n. .venv/bin/activate\npip install -r desktop/requirements.txt\npython desktop/build.py", link: "https://github.com/PushkarShah0603/OpenLorikeet/releases", label: "View releases ↗" }
+  mac: { title: "macOS 15+ · Apple silicon", copy: "Native menu bar app. Shift-drag in Finder; Command-drag for PDF tools. Built locally on Apple silicon.", command: "1. Download and open the ZIP.\n2. Drag OpenLorikeet.app into Applications.\n3. Open it from Applications.", link: "https://github.com/PushkarShah0603/OpenLorikeet/releases", label: "Check releases ↗" },
+  windows: { title: "Windows 10 / 11 · x64", copy: "Tray app. Shift-drag a file or use Convert files from the tray. Install LibreOffice for Word-to-PDF. Development build; desktop acceptance testing is pending.", command: "1. Download the Windows setup file.\n2. Open it and follow the setup wizard.\n3. Launch OpenLorikeet from the Start menu.", link: "https://github.com/PushkarShah0603/OpenLorikeet/releases", label: "View releases ↗" },
+  linux: { title: "Linux · x64", copy: "Installable tray app for Debian/Ubuntu x64. Shift-drag on X11; open the drop wheel from the tray on Wayland. GNOME may need a tray extension. Development build; desktop acceptance testing is pending.", command: "1. Download the Debian/Ubuntu installer.\n2. Open it with your Software Installer.\n3. Launch OpenLorikeet from the app menu.", link: "https://github.com/PushkarShah0603/OpenLorikeet/releases", label: "View releases ↗" }
 };
 
 const releasePage = "https://github.com/PushkarShah0603/OpenLorikeet/releases";
@@ -15,7 +15,11 @@ function renderPlatform() {
   for (const button of document.querySelectorAll("[data-platform]")) button.setAttribute("aria-pressed", String(button.dataset.platform === selectedPlatform));
   document.querySelector("#platform-title").textContent = platform.title;
   document.querySelector("#platform-copy").textContent = platform.copy;
-  document.querySelector("#platform-command").textContent = platform.command;
+  const assetForInstructions = downloadAssets[selectedPlatform];
+  const portable = assetForInstructions && (assetForInstructions.name.endsWith('.tar.gz') || selectedPlatform === 'windows' && assetForInstructions.name.endsWith('.zip'));
+  document.querySelector("#platform-command").textContent = portable
+    ? "1. Download and extract the entire archive.\n2. Keep the extracted folder together.\n3. Open OpenLorikeet inside that folder."
+    : platform.command;
   const asset = downloadAssets[selectedPlatform];
   const link = document.querySelector("#platform-link");
   link.href = asset ? asset.browser_download_url : releasePage;
@@ -50,4 +54,5 @@ async function loadDownloads() {
   }
   renderPlatform();
 }
+renderPlatform();
 if (typeof fetch === "function") loadDownloads();
