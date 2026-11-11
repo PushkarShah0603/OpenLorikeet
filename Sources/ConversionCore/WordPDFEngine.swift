@@ -19,9 +19,12 @@ struct WordPDFEngine: ConversionEngine {
         ))
         guard xml.rootElement()?.localName == "document" else { throw WorkerError.invalidInput }
         try Task.checkCancellation()
+        let (importURL, pictures) = try await WordPictures.prepare(
+            document: xml, source: request.source, workspace: output.deletingLastPathComponent()
+        )
 
         var attributes: NSDictionary?
-        let text = try NSAttributedString(url: request.source,
+        let text = try NSMutableAttributedString(url: importURL,
             options: [.documentType: NSAttributedString.DocumentType.officeOpenXML],
             documentAttributes: &attributes)
         guard text.length <= 2_000_000 else { throw WorkerError.invalidInput }
@@ -36,6 +39,7 @@ struct WordPDFEngine: ConversionEngine {
         let left = margin(.leftMargin, limit: width), right = margin(.rightMargin, limit: width)
         let top = margin(.topMargin, limit: height), bottom = margin(.bottomMargin, limit: height)
         let contentSize = NSSize(width: width - left - right, height: height - top - bottom)
+        try WordPictures.restore(pictures, in: text, contentSize: contentSize)
         var box = CGRect(origin: .zero, size: sizeInPoints)
         guard let consumer = CGDataConsumer(url: output as CFURL),
               let pdf = CGContext(consumer: consumer, mediaBox: &box, nil) else { throw WorkerError.invalidOutput }

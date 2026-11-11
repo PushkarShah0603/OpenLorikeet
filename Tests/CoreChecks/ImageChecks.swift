@@ -56,6 +56,46 @@ func checkImageRoutes() async throws {
             let pixels = preview.data!.assumingMemoryBound(to: UInt8.self)
             check(UnsafeBufferPointer(start: pixels, count: preview.bytesPerRow * preview.height).contains { $0 < 225 },
                   "The Word PDF contains the embedded image")
+            // Word compatibility shapes before a picture used to make native
+            // import discard that picture and report a successful text-only PDF.
+            let marker = "<w:drawing>"
+            let drawingStart = structure.stdout.range(of: marker)!.lowerBound
+            let drawingEnd = structure.stdout.range(of: "</w:drawing>")!.upperBound
+            let drawing = String(structure.stdout[drawingStart..<drawingEnd])
+            let extra = """
+            <w:p><w:r><w:br w:type="page"/></w:r></w:p>
+            <w:p><w:r><mc:AlternateContent><mc:Choice Requires="wps">
+            <w:drawing><wp:anchor><a:graphic><a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">
+            <wps:wsp><wps:txbx><w:txbxContent><w:p><w:r><w:t>Picture label</w:t></w:r></w:p></w:txbxContent></wps:txbx></wps:wsp>
+            </a:graphicData></a:graphic></wp:anchor></w:drawing>
+            </mc:Choice><mc:Fallback><w:pict/></mc:Fallback></mc:AlternateContent></w:r><w:r>\(drawing)</w:r></w:p>
+            """
+            let amended = structure.stdout.replacingOccurrences(of: "<w:document ",
+                with: "<w:document xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\" xmlns:wps=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\" ")
+                .replacingOccurrences(of: "<w:sectPr>", with: extra + "<w:sectPr>")
+            let parts = folder.appendingPathComponent("picture-parts")
+            try fm.createDirectory(at: parts.appendingPathComponent("word"), withIntermediateDirectories: true)
+            try amended.write(to: parts.appendingPathComponent("word/document.xml"), atomically: true, encoding: .utf8)
+            let repeated = folder.appendingPathComponent("Word compatibility pictures.docx")
+            try fm.copyItem(at: output, to: repeated)
+            _ = try await ProcessRunner.run(executable: URL(fileURLWithPath: "/usr/bin/zip"),
+                                           arguments: ["-q", repeated.path, "word/document.xml"], directory: parts)
+            let pictureJob = try ConversionRequest(source: repeated, targetFormat: .pdf)
+            await queue.submit([pictureJob])
+            await queue.waitUntilIdle()
+            guard case .succeeded(let picturePDF) = await queue.state(for: pictureJob.id),
+                  let pictureDocument = PDFDocument(url: picturePDF), pictureDocument.pageCount == 2 else {
+                fatalError("Word compatibility picture export failed")
+            }
+            for index in 0..<2 {
+                let page = pictureDocument.page(at: index)!.pageRef!
+                var resources: CGPDFDictionaryRef?
+                var objects: CGPDFDictionaryRef?
+                check(CGPDFDictionaryGetDictionary(page.dictionary!, "Resources", &resources) &&
+                      CGPDFDictionaryGetDictionary(resources!, "XObject", &objects) &&
+                      CGPDFDictionaryGetCount(objects!) > 0, "Every picture page contains embedded image data")
+            }
+            check(pictureDocument.string?.contains("Picture label") == true, "Word textbox labels survive normalization")
         default:
             guard let source = CGImageSourceCreateWithURL(output as CFURL, nil),
                   let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { fatalError("Image output is unreadable") }

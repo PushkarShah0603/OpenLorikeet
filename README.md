@@ -39,7 +39,7 @@ A batch keeps separate results for each file. OpenLorikeet validates each output
 
 PDF merge uses the order delivered by Finder. Page, sheet, and document bundle exports create folders. CSV-to-XLSX stores values as strings, preserving leading zeros and long identifiers. XLSX-to-text exports stored formula results and underlying cell values.
 
-The built-in DOCX renderer uses macOS Word import and text layout. Documents with complex page layouts may render differently from Word. OpenLorikeet prefers LibreOffice for PDF if it is installed.
+The built-in DOCX renderer uses macOS Word import and text layout, with explicit handling for embedded pictures and their crops. Floating pictures are placed in the text flow, so pagination and complex layouts can differ from Word. OpenLorikeet prefers LibreOffice for PDF if it is installed.
 
 PDF compression optimizes embedded images for screen viewing and saves a copy only when it is smaller. Metadata edits cover title, author, subject, and keywords. Organize accepts page lists and ranges such as `3, 1-2` and omits pages you leave out.
 
