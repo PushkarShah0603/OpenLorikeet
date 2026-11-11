@@ -30,3 +30,7 @@ The GitHub Pages site passes static link, asset, and interactive walkthrough che
 ## Download pipeline repair
 
 GitHub run 43005543458 confirms Windows and Linux build/test/render jobs succeeded. Mac compilation failed in WordPictures cell-width inference; that expression is now split into typed steps and passes local regression checks. The website now resolves direct asset URLs from complete, public releases rather than presenting Actions pages as downloads. CI publishes all three packages plus checksums after all required jobs pass, and portable packages run an import/resource/render self-test before upload. Linux uses tar.gz to retain executable permissions. Remote verification of the repair awaits the next pushed build.
+
+## Published packages and installers
+
+Run 43009000936 passed all platform jobs and published the first complete portable development release, desktop-43009000936-1. Windows setup EXE and Debian/Ubuntu .deb packaging have now been added, including install, installed-app self-test, and uninstall checks in native CI. Website selection prefers installers when present while preserving the existing portable download fallback. Native installer builds still need the next pushed run.

@@ -1,8 +1,8 @@
 "use strict";
 const platforms = {
   mac: { title: "macOS 15+", copy: "Native menu bar app. Shift-drag in Finder; Command-drag for PDF tools. Built locally on Apple silicon.", command: "./scripts/package.sh\nopen dist/OpenLorikeet.app", link: "https://github.com/PushkarShah0603/OpenLorikeet/releases", label: "Check releases ↗" },
-  windows: { title: "Windows 10 / 11 · x64", copy: "Portable tray app. Shift-drag a file or use Convert files from the tray. Install LibreOffice for Word-to-PDF. Development build; desktop acceptance testing is pending.", command: "py -3.12 -m pip install -r desktop/requirements.txt\npy -3.12 desktop/build.py", link: "https://github.com/PushkarShah0603/OpenLorikeet/releases", label: "View releases ↗" },
-  linux: { title: "Linux · x64", copy: "Portable tray app for desktop Linux. Shift-drag on X11; open the drop wheel from the tray on Wayland. GNOME may need a tray extension. Development build; desktop acceptance testing is pending.", command: "python3 -m venv .venv\n. .venv/bin/activate\npip install -r desktop/requirements.txt\npython desktop/build.py", link: "https://github.com/PushkarShah0603/OpenLorikeet/releases", label: "View releases ↗" }
+  windows: { title: "Windows 10 / 11 · x64", copy: "Tray app. Shift-drag a file or use Convert files from the tray. Install LibreOffice for Word-to-PDF. Development build; desktop acceptance testing is pending.", command: "py -3.12 -m pip install -r desktop/requirements.txt\npy -3.12 desktop/build.py", link: "https://github.com/PushkarShah0603/OpenLorikeet/releases", label: "View releases ↗" },
+  linux: { title: "Linux · x64", copy: "Installable tray app for Debian/Ubuntu x64. Shift-drag on X11; open the drop wheel from the tray on Wayland. GNOME may need a tray extension. Development build; desktop acceptance testing is pending.", command: "python3 -m venv .venv\n. .venv/bin/activate\npip install -r desktop/requirements.txt\npython desktop/build.py", link: "https://github.com/PushkarShah0603/OpenLorikeet/releases", label: "View releases ↗" }
 };
 
 const releasePage = "https://github.com/PushkarShah0603/OpenLorikeet/releases";
@@ -21,7 +21,7 @@ function renderPlatform() {
   link.href = asset ? asset.browser_download_url : releasePage;
   link.textContent = asset ? "Download " + asset.name : "View releases ↗";
   const availability = document.querySelector("#platform-availability");
-  if (availability) availability.textContent = asset ? "Development package · " + Math.ceil(asset.size / 1048576) + " MB · extract before opening" : downloadStatus;
+  if (availability) availability.textContent = asset ? "Development package · " + Math.ceil(asset.size / 1048576) + " MB · " + (asset.name.endsWith("-Setup.exe") ? "run the setup wizard" : asset.name.endsWith(".deb") ? "install on Debian/Ubuntu" : "extract before opening") : downloadStatus;
 }
 for (const button of document.querySelectorAll("[data-platform]")) {
   button.addEventListener("click", () => { selectedPlatform = button.dataset.platform; renderPlatform(); });
@@ -37,8 +37,8 @@ async function loadDownloads() {
       if (release.draft) continue;
       const assets = (release.assets || []).filter(asset => asset.state === "uploaded" && asset.size > 0 && typeof asset.browser_download_url === "string" && asset.browser_download_url.startsWith(releasePage + "/download/"));
       const candidate = {
-        windows: assets.find(asset => asset.name === "OpenLorikeet-Windows-x64.zip"),
-        linux: assets.find(asset => asset.name === "OpenLorikeet-Linux-x64.tar.gz"),
+        windows: assets.find(asset => asset.name === "OpenLorikeet-Windows-x64-Setup.exe") || assets.find(asset => asset.name === "OpenLorikeet-Windows-x64.zip"),
+        linux: assets.find(asset => asset.name === "OpenLorikeet-Linux-x64.deb") || assets.find(asset => asset.name === "OpenLorikeet-Linux-x64.tar.gz"),
         mac: assets.find(asset => asset.name === "OpenLorikeet-macOS-arm64.zip")
       };
       // Publish a coherent download set; ignore incomplete/draft releases.

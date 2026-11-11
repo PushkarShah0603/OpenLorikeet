@@ -63,7 +63,7 @@ Run on each target OS with the environment above:
 python desktop/build.py
 ```
 
-Windows produces `dist/OpenLorikeet-Windows-x64.zip`. Extract the **whole folder**, then run `OpenLorikeet.exe`. Linux produces `dist/OpenLorikeet-Linux-x64.tar.gz`; extract the archive (preserving executable permissions) and run `./OpenLorikeet/OpenLorikeet`. Libraries and assets alongside the executable are required. LibreOffice and Pandoc are separate installations. Packages include third-party notices. These are portable ZIPs; installers, Windows signing, and Linux package-manager integration remain release work.
+Windows produces `dist/OpenLorikeet-Windows-x64.zip`. Extract the **whole folder**, then run `OpenLorikeet.exe`. Linux produces `dist/OpenLorikeet-Linux-x64.tar.gz`; extract the archive (preserving executable permissions) and run `./OpenLorikeet/OpenLorikeet`. Libraries and assets alongside the executable are required. LibreOffice and Pandoc are separate installations. Packages include third-party notices. The archives are optional portable editions. Native CI also builds a per-user Windows setup EXE and a Debian/Ubuntu .deb, with install/run/uninstall checks. Their first CI validation is pending after this change. Windows signing remains release work.
 
 Mac continues to use `./scripts/package.sh` and produces its native app ZIP.
 
@@ -92,3 +92,13 @@ On PowerShell, set `$env:QT_QPA_PLATFORM = 'offscreen'` before the UI check. The
 ## Download repair
 
 The initial Windows/Linux jobs succeeded, but their buttons led to Actions instead of downloads and no public release existed. The Mac CI compiler also timed out while inferring a Word picture cell-width expression, preventing its package. The expression now uses explicit intermediate types. Native packaged self-tests check portable imports and mascot resources before artifacts are uploaded. Once all jobs pass, the release job uploads a complete development download set and checksums. Ordinary source pushes and manual main-branch builds trigger this; pull requests cannot publish. Real desktop testing remains separate.
+
+## Standard installation packages
+
+Windows: `OpenLorikeet-Windows-x64-Setup.exe` is a single downloadable setup wizard. It places required libraries in the installation directory, creates a Start menu entry, offers an optional desktop shortcut, and registers an uninstaller. Users do not manage the installed files. The optional ZIP remains portable. No Python installation is required.
+
+Debian/Ubuntu x64: `OpenLorikeet-Linux-x64.deb` installs the app under /opt/openlorikeet and adds an application-menu entry. Install with `sudo apt install ./OpenLorikeet-Linux-x64.deb`; remove with `sudo apt remove openlorikeet`. Other Linux distributions can use the portable tar.gz subject to compatible system libraries.
+
+Mac: the ZIP contains one OpenLorikeet.app application bundle. Finder presents that bundle as a single app; move it into Applications. Supporting files live inside the bundle.
+
+Once installer CI passes, the release includes installers and portable archives. Website buttons prefer the EXE and .deb, falling back to existing portable releases while installers are unavailable.

@@ -117,7 +117,7 @@ for (const [,asset] of css.matchAll(/url\(['"]?([^)'"\s]+)['"]?\)/g)) {
 }
 console.log('PASS: platform setup, truthful artifact links, and CSS asset paths');
 
-async function checkDownloads(releases, failure = false) {
+async function checkDownloads(releases, failure = false, selected = 'windows') {
   const buttons = ['mac', 'windows', 'linux'].map(platform => element({platform}));
   const fields = Object.fromEntries(['title','copy','command','link','availability'].map(key => ['#platform-'+key, element()]));
   const context = {document: {querySelectorAll: () => buttons, querySelector: key => fields[key]},
@@ -125,7 +125,7 @@ async function checkDownloads(releases, failure = false) {
     fetch: async () => { if (failure) throw new Error('offline'); return {ok:true, json:async () => releases}; }};
   runInNewContext(platformScript, context);
   await new Promise(resolve => setImmediate(resolve));
-  buttons[1].click();
+  buttons.find(button => button.dataset.platform === selected).click();
   return fields;
 }
 const releaseAssets = ['OpenLorikeet-Windows-x64.zip','OpenLorikeet-Linux-x64.tar.gz','OpenLorikeet-macOS-arm64.zip'].map(name => ({name, state:'uploaded', size:1000, browser_download_url:'https://github.com/PushkarShah0603/OpenLorikeet/releases/download/desktop-test/'+name}));
@@ -138,3 +138,13 @@ for (const [data, offline] of [[[], false], [[{assets:releaseAssets.slice(0,1)}]
   assert.doesNotMatch(fallback['#platform-link'].textContent, /^Download /);
 }
 console.log('PASS: real release asset downloads; empty, partial, draft, and offline fallbacks');
+
+const installers = ['OpenLorikeet-Windows-x64-Setup.exe', 'OpenLorikeet-Linux-x64.deb'].map(name => ({name, state:'uploaded', size:2000, browser_download_url:'https://github.com/PushkarShah0603/OpenLorikeet/releases/download/desktop-install/'+name}));
+const installRelease = [{draft:false, assets:[...releaseAssets,...installers]}];
+const windowsInstall = await checkDownloads(installRelease);
+assert.match(windowsInstall['#platform-link'].href, /-Setup.exe$/);
+assert.match(windowsInstall['#platform-availability'].textContent, /setup wizard/);
+const linuxInstall = await checkDownloads(installRelease, false, 'linux');
+assert.match(linuxInstall['#platform-link'].href, /Linux-x64.deb$/);
+assert.match(linuxInstall['#platform-availability'].textContent, /Debian\/Ubuntu/);
+console.log('PASS: installers preferred over portable archives, with matching instructions');

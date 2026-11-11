@@ -40,12 +40,41 @@ jobs:
           else
             timeout 60 dist/portable/OpenLorikeet/OpenLorikeet --self-test
           fi
+      - name: Build Windows setup executable
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $compiler = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (!(Test-Path $compiler)) {
+            choco install innosetup --yes --no-progress
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          & $compiler desktop/windows-installer.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $setup = (Resolve-Path dist/OpenLorikeet-Windows-x64-Setup.exe).Path
+          $target = Join-Path $env:RUNNER_TEMP 'OpenLorikeet-installed'
+          $result = Start-Process $setup -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=$target") -Wait -PassThru
+          if ($result.ExitCode -ne 0) { throw 'Setup failed' }
+          $env:QT_QPA_PLATFORM = 'offscreen'
+          $test = Start-Process (Join-Path $target 'OpenLorikeet.exe') -ArgumentList '--self-test' -Wait -PassThru
+          if ($test.ExitCode -ne 0) { throw 'Installed app self-test failed' }
+          $uninstall = Start-Process (Join-Path $target 'unins000.exe') -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART') -Wait -PassThru
+          if ($uninstall.ExitCode -ne 0) { throw 'Uninstall failed' }
+      - name: Build Linux installable package
+        if: runner.os == 'Linux'
+        run: |
+          python desktop/linux-package.py
+          sudo dpkg -i dist/OpenLorikeet-Linux-x64.deb
+          QT_QPA_PLATFORM=offscreen timeout 60 /opt/openlorikeet/OpenLorikeet --self-test
+          sudo dpkg -r openlorikeet
       - uses: actions/upload-artifact@v4
         with:
           name: OpenLorikeet-${{ runner.os }}
           path: |
             dist/OpenLorikeet-*.zip
             dist/OpenLorikeet-*.tar.gz
+            dist/OpenLorikeet-*.exe
+            dist/OpenLorikeet-*.deb
           if-no-files-found: error
   macOS:
     runs-on: macos-15
@@ -87,6 +116,8 @@ jobs:
         run: |
           set -euo pipefail
           cd packages
+          test -s OpenLorikeet-Windows-x64-Setup.exe
+          test -s OpenLorikeet-Linux-x64.deb
           test -s OpenLorikeet-Windows-x64.zip
           test -s OpenLorikeet-Linux-x64.tar.gz
           test -s OpenLorikeet-macOS-arm64.zip
@@ -94,8 +125,8 @@ jobs:
           cat > notes.md <<'NOTES'
           OpenLorikeet desktop development builds for macOS, Windows, and Linux.
 
-          Windows: extract the entire ZIP and run OpenLorikeet.exe inside the folder.
-          Linux: extract the tar.gz archive and run ./OpenLorikeet/OpenLorikeet.
+          Windows: download and run OpenLorikeet-Windows-x64-Setup.exe. It installs the app and creates a Start menu shortcut. The ZIP is an optional portable edition.
+          Linux (Debian/Ubuntu): install OpenLorikeet-Linux-x64.deb and launch from your app menu. The tar.gz is an optional portable edition.
           macOS: extract the ZIP and move OpenLorikeet.app to Applications.
 
           Windows/Linux Word-to-PDF requires a separate LibreOffice installation.
