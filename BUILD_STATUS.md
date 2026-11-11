@@ -26,3 +26,7 @@ The GitHub Pages site passes static link, asset, and interactive walkthrough che
 ## Windows and Linux expansion
 
 `desktop/` contains the Qt tray utility, radial drop wheel, cartoon atlas animation, background workers, and a portable conversion core. Native Windows and Linux builds are configured in `.github/workflows/desktop.yml`. Their builds and graphical acceptance are pending. The local package index could not resolve, so Qt, python-docx, openpyxl and ReportLab could not be installed here. Available local Python checks verify PDF image export/merge/split/order/metadata, route gating, and collision-safe publication; Word pictures and spreadsheet checks await installed dependencies. macOS remains the native Swift build. Feature and interaction differences are listed in [CROSS_PLATFORM.md](docs/CROSS_PLATFORM.md).
+
+## Download pipeline repair
+
+GitHub run 43005543458 confirms Windows and Linux build/test/render jobs succeeded. Mac compilation failed in WordPictures cell-width inference; that expression is now split into typed steps and passes local regression checks. The website now resolves direct asset URLs from complete, public releases rather than presenting Actions pages as downloads. CI publishes all three packages plus checksums after all required jobs pass, and portable packages run an import/resource/render self-test before upload. Linux uses tar.gz to retain executable permissions. Remote verification of the repair awaits the next pushed build.

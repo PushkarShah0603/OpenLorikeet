@@ -24,5 +24,6 @@ for distribution in importlib.metadata.distributions():
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy(source, target)
 name = 'OpenLorikeet-'  + ('Windows-x64' if sys.platform=='win32' else 'Linux-x64' if sys.platform.startswith('linux') else 'macOS-portable')
-shutil.make_archive(str(root/'dist'/name), 'zip', root/'dist/portable', 'OpenLorikeet')
-print('Packaged', name + '.zip')
+archive_format = 'gztar' if sys.platform.startswith('linux') else 'zip'
+archive = shutil.make_archive(str(root/'dist'/name), archive_format, root/'dist/portable', 'OpenLorikeet')
+print('Packaged', archive)

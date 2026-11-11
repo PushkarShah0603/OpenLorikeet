@@ -170,5 +170,18 @@ class App:
 def main():
     app=QApplication(sys.argv); app.setOrganizationName('OpenLorikeet'); app.setApplicationName('OpenLorikeet'); app.setQuitOnLastWindowClosed(False)
     app.setStyleSheet('QWidget { font-size: 13px; } QPushButton { padding: 7px; }')
+    if '--self-test' in sys.argv:
+        from PIL import Image
+        from pypdf import PdfReader
+        from docx import Document
+        from openpyxl import Workbook
+        from reportlab.pdfgen import canvas
+        bird=Bird()
+        if bird.atlas.isNull(): raise RuntimeError('Mascot artwork is missing')
+        for pose in ('ready', 'working', 'happy', 'failed'):
+            bird.set_pose(pose)
+            if bird.grab().isNull(): raise RuntimeError('Mascot rendering failed')
+        print('PASS: packaged imports, resources, and mascot rendering')
+        return 0
     controller=App()
     return app.exec()

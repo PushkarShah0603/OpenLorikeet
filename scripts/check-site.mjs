@@ -105,7 +105,7 @@ runInNewContext(platformScript, {document: {
 platformButtons[1].click();
 assert.match(platformElements['#platform-title'].textContent, /Windows/);
 assert.match(platformElements['#platform-command'].textContent, /py -3.12/);
-assert.match(platformElements['#platform-link'].href, /actions\/workflows/);
+assert.match(platformElements['#platform-link'].href, /releases$/);
 assert.equal(platformButtons[0].attributes.get('aria-pressed'), 'false');
 platformButtons[2].click();
 assert.match(platformElements['#platform-copy'].textContent, /Wayland/);
@@ -116,3 +116,25 @@ for (const [,asset] of css.matchAll(/url\(['"]?([^)'"\s]+)['"]?\)/g)) {
   assert(existsSync(new URL('assets/'+asset, docs)), 'Missing CSS asset '+asset);
 }
 console.log('PASS: platform setup, truthful artifact links, and CSS asset paths');
+
+async function checkDownloads(releases, failure = false) {
+  const buttons = ['mac', 'windows', 'linux'].map(platform => element({platform}));
+  const fields = Object.fromEntries(['title','copy','command','link','availability'].map(key => ['#platform-'+key, element()]));
+  const context = {document: {querySelectorAll: () => buttons, querySelector: key => fields[key]},
+    AbortSignal: {timeout: () => undefined},
+    fetch: async () => { if (failure) throw new Error('offline'); return {ok:true, json:async () => releases}; }};
+  runInNewContext(platformScript, context);
+  await new Promise(resolve => setImmediate(resolve));
+  buttons[1].click();
+  return fields;
+}
+const releaseAssets = ['OpenLorikeet-Windows-x64.zip','OpenLorikeet-Linux-x64.tar.gz','OpenLorikeet-macOS-arm64.zip'].map(name => ({name, state:'uploaded', size:1000, browser_download_url:'https://github.com/PushkarShah0603/OpenLorikeet/releases/download/desktop-test/'+name}));
+const live = await checkDownloads([{draft:true,assets:releaseAssets},{draft:false,assets:releaseAssets}]);
+assert.match(live['#platform-link'].href, /download\/desktop-test\/OpenLorikeet-Windows-x64.zip$/);
+assert.match(live['#platform-link'].textContent, /^Download /);
+for (const [data, offline] of [[[], false], [[{assets:releaseAssets.slice(0,1)}], false], [[], true]]) {
+  const fallback = await checkDownloads(data, offline);
+  assert.match(fallback['#platform-link'].href, /releases$/);
+  assert.doesNotMatch(fallback['#platform-link'].textContent, /^Download /);
+}
+console.log('PASS: real release asset downloads; empty, partial, draft, and offline fallbacks');

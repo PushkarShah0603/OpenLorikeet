@@ -88,9 +88,12 @@ enum WordPictures {
             while ancestor != nil, ancestor?.localName != "tc" { ancestor = ancestor?.parent }
             let cell = ancestor.flatMap { elements(named: "tcW", in: $0).first }
             let cellType = cell?.attributes?.first(where: { $0.localName == "type" })?.stringValue
-            let cellWidth = cellType == "dxa"
-                ? cell?.attributes?.first(where: { $0.localName == "w" })?.stringValue.flatMap(Double.init).flatMap { $0 > 240 ? $0 / 20 - 12 : nil }
-                : nil
+            var cellWidth: Double?
+            if cellType == "dxa",
+               let widthText = cell?.attributes?.first(where: { $0.localName == "w" })?.stringValue,
+               let widthTwips = Double(widthText), widthTwips > 240 {
+                cellWidth = widthTwips / 20 - 12
+            }
             let marker = "LORIKEETPICTURE" + token + "P" + String(result.count) + "END"
             result.append(Picture(marker: marker, data: data, size: NSSize(width: width, height: height),
                                   maximumCellWidth: cellWidth, crop: crop))

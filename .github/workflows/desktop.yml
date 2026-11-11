@@ -30,10 +30,22 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
       - run: python desktop/build.py
+      - name: Check packaged executable
+        shell: bash
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            dist/portable/OpenLorikeet/OpenLorikeet.exe --self-test
+          else
+            timeout 60 dist/portable/OpenLorikeet/OpenLorikeet --self-test
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: OpenLorikeet-${{ runner.os }}
-          path: dist/OpenLorikeet-*.zip
+          path: |
+            dist/OpenLorikeet-*.zip
+            dist/OpenLorikeet-*.tar.gz
           if-no-files-found: error
   macOS:
     runs-on: macos-15
@@ -53,3 +65,41 @@ jobs:
         with:
           node-version: '22'
       - run: node scripts/check-site.mjs
+
+  release:
+    needs: [portable, macOS, website]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: OpenLorikeet-*
+          merge-multiple: true
+          path: packages
+      - name: Publish complete desktop download set
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: desktop-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          cd packages
+          test -s OpenLorikeet-Windows-x64.zip
+          test -s OpenLorikeet-Linux-x64.tar.gz
+          test -s OpenLorikeet-macOS-arm64.zip
+          sha256sum OpenLorikeet-* > SHA256SUMS.txt
+          cat > notes.md <<'NOTES'
+          OpenLorikeet desktop development builds for macOS, Windows, and Linux.
+
+          Windows: extract the entire ZIP and run OpenLorikeet.exe inside the folder.
+          Linux: extract the tar.gz archive and run ./OpenLorikeet/OpenLorikeet.
+          macOS: extract the ZIP and move OpenLorikeet.app to Applications.
+
+          Windows/Linux Word-to-PDF requires a separate LibreOffice installation.
+          Automated build and rendering checks passed. Real desktop acceptance remains pending.
+          These builds are not notarized or signed with a public distribution certificate.
+          NOTES
+          gh release create "$RELEASE_TAG" OpenLorikeet-* SHA256SUMS.txt --repo "$GH_REPO" --target "$GITHUB_SHA" --title OpenLorikeet --prerelease --notes-file notes.md
