@@ -93,3 +93,26 @@ function testDemo(reduced) {
 testDemo(false);
 testDemo(true);
 console.log("PASS: site links, asset paths, picker actions, walkthrough, reset, and reduced-motion timing");
+
+// Platform switching must update both setup instructions and the destination link.
+const platformScript = readFileSync(new URL('assets/platforms.js', docs), 'utf8');
+const platformButtons = ['mac', 'windows', 'linux'].map(platform => element({platform}));
+const platformElements = Object.fromEntries(['title','copy','command','link'].map(key => ['#platform-'+key, element()]));
+runInNewContext(platformScript, {document: {
+  querySelectorAll: () => platformButtons,
+  querySelector: selector => platformElements[selector]
+}});
+platformButtons[1].click();
+assert.match(platformElements['#platform-title'].textContent, /Windows/);
+assert.match(platformElements['#platform-command'].textContent, /py -3.12/);
+assert.match(platformElements['#platform-link'].href, /actions\/workflows/);
+assert.equal(platformButtons[0].attributes.get('aria-pressed'), 'false');
+platformButtons[2].click();
+assert.match(platformElements['#platform-copy'].textContent, /Wayland/);
+platformButtons[0].click();
+assert.match(platformElements['#platform-link'].href, /releases$/);
+const css = readFileSync(new URL('assets/site.css', docs), 'utf8');
+for (const [,asset] of css.matchAll(/url\(['"]?([^)'"\s]+)['"]?\)/g)) {
+  assert(existsSync(new URL('assets/'+asset, docs)), 'Missing CSS asset '+asset);
+}
+console.log('PASS: platform setup, truthful artifact links, and CSS asset paths');

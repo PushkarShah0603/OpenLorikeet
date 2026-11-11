@@ -171,3 +171,71 @@ footer { background: var(--white); border-top: 1px solid var(--line); }
   .is-playing .drag-ghost { display: none; }
   .wedge { transition: none; }
 }
+/* Featherlight: ink green, warm paper, oversized type, a little electric lime. */
+:root { --paper:#f4f2e8; --white:#fffef8; --ink:#172c24; --green:#183f2e; --accent:#cef59b; }
+.site-header { background:var(--paper); border:0; }
+.nav { min-height:90px; }
+.brand { letter-spacing:-.05em; font-size:21px; }
+.hero { padding-top:45px; padding-bottom:100px; gap:42px; }
+.hero-copy { position:relative; padding-top:75px; }
+.hero-bird { position:absolute; top:-12px; left:-14px; width:112px; height:112px; background:url('lorikeet-atlas.png') 0 0 / 400% 200%; animation:hello-bird 5s steps(1) infinite; }
+h1 { font-size:clamp(62px,7vw,100px); letter-spacing:-.075em; line-height:.94; }
+h1 span { color:#527349; }
+.lede { font-size:18px; max-width:39ch; }
+.eyebrow { letter-spacing:.18em; font-size:10px; }
+.button { border-radius:30px; padding:15px 22px; }
+.primary { background:#c6ef95; color:#152b20; }
+.primary:hover { background:#b8e582; }
+.secondary { background:transparent; border-color:#bac5b3; }
+.demo { transform:rotate(2deg); box-shadow:10px 28px 0 #d6ddc7,0 36px 80px #16352524; border-radius:20px; animation:none; }
+.demo-stage { min-height:365px; padding-top:28px; background:radial-gradient(ellipse at 50% 90%,#435e3b 0%,transparent 70%),#14291f; }
+.demo-feedback { width:310px; padding:5px 12px; border-radius:18px; }
+.mascot { width:82px; height:82px; }
+.demo-feedback strong { font-size:14px; }
+.demo-layout { padding-top:28px; }
+.wheel { width:228px; box-shadow:0 12px 35px #0004; }
+.demo-bar,.demo-footer { background:#22392c; padding-inline:20px; min-height:54px; }
+.workflow { padding-block:75px; }
+.steps { counter-reset:step; gap:38px; margin-top:38px; }
+.steps li { counter-increment:step; flex-direction:column; gap:24px; padding-top:22px; }
+.steps li::before { content:'0' counter(step); color:#668253; font-size:38px; font-weight:400; letter-spacing:-.07em; }
+.steps h3 { font-size:23px; }
+.promise { display:grid; grid-template-columns:1.3fr 1fr; column-gap:80px; padding-block:100px; border-top:1px solid #cdd5c2; }
+.promise .eyebrow { grid-column:1/-1; }
+.promise h2 { font-size:clamp(55px,7vw,94px); }
+.promise em { font-family:Georgia,serif; font-weight:400; color:#6b8159; }
+.promise>p:last-child { align-self:end; max-width:34ch; font-size:22px; line-height:1.7; padding-bottom:20px; }
+.formats-section { background:#14271f; color:#f8f7ed; border:0; border-radius:34px 34px 0 0; }
+.formats-section .eyebrow { color:#c6ef95; }
+.formats-section .section { padding-block:90px; }
+.section-heading { margin-bottom:40px; }
+.section-heading>p,.format-card p { color:#c3cfc0; }
+.format-grid { gap:0; }
+.format-card { background:transparent; border:0; border-top:1px solid #46604a; border-radius:0; padding:30px 24px 35px 0; min-height:255px; }
+.format-card h3 { font-size:26px; max-width:18ch; font-weight:500; margin-top:23px; }
+.format-mark { background:transparent!important; padding:0; color:#c6ef95!important; font-size:10px; font-weight:500; letter-spacing:.14em; }
+.tags span { background:#284133; border:0; color:#dce8d5; }
+.wide-card { grid-column:span 2; }
+.wide-card p { max-width:59ch; }
+.note-card a { color:#c6ef95; }
+.install { padding-block:110px; gap:85px; }
+.install h2 { font-size:clamp(45px,5vw,70px); }
+.release-note { font-size:13px!important; color:#53644c!important; }
+.setup { background:#e6ebdc; color:var(--ink); border:1px solid #d0dac7; padding:26px; border-radius:22px; }
+.setup pre { background:#f6f7ef; color:#28442f; margin-block:24px; padding:18px; min-height:100px; }
+.setup>p { font-weight:400; line-height:1.7; min-height:70px; }
+.platform-tabs { display:flex; gap:4px; background:#d7dfcd; padding:5px; border-radius:30px; margin-bottom:30px; }
+.platform-tabs button { flex:1; padding:10px 6px; border:0; border-radius:25px; background:transparent; color:var(--ink); font-weight:650; }
+.platform-tabs [aria-pressed=true] { background:var(--white); box-shadow:0 2px 5px #13251b17; }
+.build-link { display:block; margin-top:20px; font-size:13px; }
+.last-call { display:flex; align-items:center; gap:30px; border-top:1px solid #cdd5c2; padding-block:40px; }
+.last-call p { font-size:30px; font-weight:650; letter-spacing:-.04em; margin:0; }
+.last-call p span { color:#708360; }
+.last-call .button { margin-left:auto; }
+.small-bird { width:110px; height:110px; flex:none; background:url('lorikeet-atlas.png') 66.6667% 100% / 400% 200%; }
+footer { background:var(--paper); }
+.footer { padding-block:24px; }
+@keyframes hello-bird { 0%,95%,100% { background-position:0 0; } 96%,98% { background-position:33.3333% 0; } }
+@media(max-width:860px) { .hero { gap:45px; padding-bottom:70px; } .hero-copy { padding-top:90px; } .demo { transform:none; } .promise { gap:25px; } .promise>p:last-child { font-size:18px; } .install { gap:30px; } }
+@media(max-width:580px) { .nav { min-height:72px; } .brand { font-size:18px; } .hero { padding-top:22px; } h1 { font-size:65px; } .demo-stage { min-height:350px; } .wheel { width:208px; } .demo-feedback { width:285px; } .promise,.install { grid-template-columns:1fr; padding-block:65px; } .promise h2 { font-size:58px; } .wide-card { grid-column:auto; } .last-call { flex-wrap:wrap; gap:15px; } .last-call p { font-size:25px; } .last-call .button { margin-left:0; } .nav-source { font-size:12px; } }
+@media(prefers-reduced-motion:reduce) { .hero-bird { animation:none; } }

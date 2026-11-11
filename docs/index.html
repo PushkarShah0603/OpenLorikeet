@@ -3,16 +3,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="OpenLorikeet is a local macOS file converter. Hold Shift while dragging a file, choose a format, and save a copy beside the original.">
-  <meta name="theme-color" content="#f3f5eb">
-  <meta property="og:title" content="OpenLorikeet · Local file conversion for macOS">
-  <meta property="og:description" content="Shift-drag a file in Finder to convert it on your Mac.">
+  <meta name="description" content="A little bird. A better file workflow. Local conversion tools for macOS, Windows, and Linux.">
+  <meta name="theme-color" content="#101d19">
+  <meta property="og:title" content="OpenLorikeet · Your files. A little more free.">
+  <meta property="og:description" content="Local file conversion with an animated companion. Meet OpenLorikeet for your desktop.">
   <meta property="og:type" content="website">
   <meta property="og:image" content="https://pushkarshah0603.github.io/OpenLorikeet/assets/lorikeet.png">
-  <title>OpenLorikeet · Local file conversion for macOS</title>
+  <title>OpenLorikeet · Your files. A little more free.</title>
   <link rel="icon" href="assets/lorikeet.png">
   <link rel="stylesheet" href="assets/site.css">
   <script src="assets/demo.js" defer></script>
+  <script src="assets/platforms.js" defer></script>
 </head>
 <body>
   <a class="skip" href="#main">Skip to content</a>
@@ -29,20 +30,20 @@
   </header>
   <main id="main">
     <section class="hero shell" id="top">
-      <div class="hero-copy">
-        <p class="eyebrow"><span class="dot"></span> OFFLINE FILE TOOLS FOR MACOS</p>
-        <h1>Convert files<br>where they are<span>.</span></h1>
-        <p class="lede">Hold Shift while dragging a file in Finder, then drop it on a format. OpenLorikeet saves a converted copy beside your original.</p>
+      <div class="hero-copy"><div class="hero-bird" aria-hidden="true"></div>
+        <p class="eyebrow"><span class="dot"></span> SMALL APP. BIG WINGS.</p>
+        <h1>Let your files<br><span>take flight.</span></h1>
+        <p class="lede">Documents, pictures, spreadsheets. One little wheel to give them a new form. Meet your colourful desktop companion for local file conversion.</p>
         <div class="actions">
           <a class="button primary" href="#install">Get OpenLorikeet <span aria-hidden="true">↘</span></a>
           <a class="button secondary" href="#demo">Try the picker <span aria-hidden="true">↓</span></a>
         </div>
-        <p class="system-note">macOS 15 or later <span aria-hidden="true">·</span> Development build</p>
+        <p class="system-note">macOS · Windows · Linux <span aria-hidden="true">/</span> Always local</p>
       </div>
       <div class="demo" id="demo" role="region" aria-label="Interactive preview of the format picker">
         <div class="demo-bar">
           <span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span>
-          <span>Picker preview</span>
+          <span>Your desktop, less busy</span>
           <kbd>⇧ Shift</kbd>
         </div>
         <div class="demo-stage">
@@ -74,57 +75,38 @@
     </section>
 
     <section class="workflow section shell" id="workflow" aria-labelledby="workflow-title">
-      <p class="eyebrow">THE FINDER WORKFLOW</p>
-      <h2 id="workflow-title">Three steps to a new format.</h2>
+      <p class="eyebrow">LESS CLICKING. MORE DOING.</p>
+      <h2 id="workflow-title">A shortcut with personality.</h2>
       <ol class="steps">
-        <li><div><h3>Drag a file</h3><p>Start from the Desktop or Finder. Select several files to convert them together.</p></div></li>
-        <li><div><h3>Hold Shift</h3><p>See the available output formats. Hold Command during a PDF drag for the tool wheel.</p></div></li>
-        <li><div><h3>Drop on a format</h3><p>The animated lorikeet follows the job. Open the saved copy or reveal it in Finder.</p></div></li>
+        <li><div><h3>Drag a file</h3><p>Pick a document, photo, or spreadsheet. Keep it right where it belongs.</p></div></li>
+        <li><div><h3>Hold Shift</h3><p>On Mac and Windows, Shift-drag reveals the wheel. On Linux Wayland, open it from the tray first.</p></div></li>
+        <li><div><h3>Drop on a format</h3><p>Choose a format and let the bird take over. A validated copy lands beside your original.</p></div></li>
       </ol>
     </section>
 
-    <section class="formats-section" id="formats" aria-labelledby="formats-title">
-      <div class="section shell">
-        <div class="section-heading">
-          <div><p class="eyebrow">FORMAT GUIDE</p><h2 id="formats-title">What you can convert.</h2></div>
-          <p>Files stay on your Mac. Some document routes require a separately installed engine.</p>
-        </div>
-        <div class="format-grid">
-          <article class="format-card"><span class="format-mark blue">PDF</span><h3>PDF tools</h3><p>Compress image-heavy PDFs for the screen, edit title and author information, reorder pages, split, or merge. Export to Word, text, or page images.</p><div class="tags"><span>PDF</span><span>DOCX</span><span>TXT</span><span>JPG / PNG</span></div></article>
-          <article class="format-card"><span class="format-mark green">IMG</span><h3>Images</h3><p>Convert, resize, and compress photos and screenshots. Preserve PNG pixels during lossless compression or aim for a 500 KB copy.</p><div class="tags"><span>JPG</span><span>PNG</span><span>HEIC*</span><span>PDF</span></div></article>
-          <article class="format-card"><span class="format-mark gold">DOC</span><h3>Word documents</h3><p>Save DOCX as PDF with the built-in renderer, or extract text and simple HTML. Add LibreOffice for ODT and more faithful Word layouts.</p><div class="tags"><span>DOCX</span><span>PDF</span><span>TXT</span><span>HTML</span><span>ODT*</span></div></article>
-          <article class="format-card"><span class="format-mark green">CSV</span><h3>Spreadsheets</h3><p>Turn CSV and TSV into XLSX without losing leading zeros. Export sheets as separate text files or a paginated PDF.</p><div class="tags"><span>CSV</span><span>TSV</span><span>XLSX</span><span>PDF</span></div></article>
-          <article class="format-card"><span class="format-mark blue">TEX</span><h3>Markdown and LaTeX</h3><p>Use Pandoc for document export and Tectonic to compile TeX using cached packages.</p><div class="tags"><span>MD*</span><span>TEX*</span><span>DOCX*</span><span>PDF*</span></div></article>
-          <article class="format-card note-card"><span class="format-mark gold">↗</span><h3>Check your setup</h3><p>HEIC output requires a working encoder. OCR depends on macOS Vision. The menu bar lists detected engines.</p><a href="#install">Engine setup <span aria-hidden="true">→</span></a></article>
-        </div>
-        <p class="format-footnote">* Availability depends on your Mac or installed engines. PDF to Word rebuilds content and may change the original layout.</p>
-      </div>
+    <section class="promise shell section"><p class="eyebrow">YOUR DESKTOP IS THE DESTINATION</p><h2>No upload.<br>No round trip.<br><em>Just your files.</em></h2><p>Conversion runs on your computer. Your original stays safe, and existing files are never silently overwritten. The bird celebrates after the output has been checked and saved.</p></section>
+    <section class="formats-section" id="formats" aria-labelledby="formats-title"><div class="section shell">
+      <div class="section-heading"><div><p class="eyebrow">A NEW FORM, A FEW CLICKS AWAY</p><h2 id="formats-title">The everyday essentials.</h2></div><p>The wheel only shows routes supported by your files and installed engines.</p></div>
+      <div class="format-grid">
+        <article class="format-card"><span class="format-mark blue">01 / DOC</span><h3>From draft to done.</h3><p>Word to PDF with pictures intact through LibreOffice. Extract text and simple HTML. Mac also includes its own Word renderer.</p><div class="tags"><span>DOCX</span><span>PDF</span><span>HTML</span></div></article>
+        <article class="format-card"><span class="format-mark green">02 / IMG</span><h3>Picture the possibilities.</h3><p>Convert pictures, shrink a copy, resize, or place an image inside a Word document. JPEG exports get a clean white background.</p><div class="tags"><span>PNG</span><span>JPG</span><span>PDF</span><span>DOCX</span></div></article>
+        <article class="format-card"><span class="format-mark gold">03 / PDF</span><h3>A little order, please.</h3><p>Merge, split, reorder, edit metadata, and extract selectable text. Compression saves a new copy only if it gets smaller.</p><div class="tags"><span>MERGE</span><span>SPLIT</span><span>METADATA</span></div></article>
+        <article class="format-card wide-card"><span class="format-mark green">04 / DATA</span><h3>Keep the zeros. Change the format.</h3><p>Move between CSV, TSV, and XLSX. Preserve identifiers and leading zeros. Export a readable PDF when your table needs to travel.</p><div class="tags"><span>CSV</span><span>TSV</span><span>XLSX</span><span>PDF</span></div></article>
+        <article class="format-card note-card"><span class="format-mark gold">05 / MORE</span><h3>Bring your own engines.</h3><p>Install LibreOffice for Word layouts, or Pandoc for document routes. Native Mac adds HEIC, editable PDF reconstruction, and cached TeX compilation.</p><a href="https://github.com/PushkarShah0603/OpenLorikeet/blob/main/docs/CROSS_PLATFORM.md">See platform coverage ↗</a></article>
+      </div></div>
     </section>
-
     <section class="section shell install" id="install" aria-labelledby="install-title">
-      <div class="install-copy">
-        <p class="eyebrow">INSTALL OPENLORIKEET</p>
-        <h2 id="install-title">Try it on your Mac.</h2>
-        <p>Use a ZIP from GitHub Releases when one is available, or build from source with Swift 6 and Xcode Command Line Tools. The default package is ad-hoc signed for local testing.</p>
-        <div class="actions">
-          <a class="button primary" href="https://github.com/PushkarShah0603/OpenLorikeet/releases">GitHub Releases <span aria-hidden="true">↗</span></a>
-          <a class="button secondary" href="https://github.com/PushkarShah0603/OpenLorikeet#build-from-source">Build guide</a>
-        </div>
-      </div>
+      <div class="install-copy"><p class="eyebrow">ONE BIRD. THREE HOMES.</p><h2 id="install-title">Make room<br>for a lorikeet.</h2><p>Same tray utility. Same wheel. Same expressive companion. Choose your system for the right build and setup.</p><p class="release-note">Development builds. Windows and Linux packages require a successful native CI build and desktop acceptance testing.</p></div>
       <div class="setup">
-        <h3>Build from source</h3>
-        <pre><code>git clone https://github.com/PushkarShah0603/OpenLorikeet.git
-cd OpenLorikeet
-./scripts/package.sh
+        <div class="platform-tabs" role="group" aria-label="Choose operating system"><button data-platform="mac" aria-pressed="true">macOS</button><button data-platform="windows" aria-pressed="false">Windows</button><button data-platform="linux" aria-pressed="false">Linux</button></div>
+        <h3 id="platform-title">macOS 15+</h3><p id="platform-copy">Native menu bar app. Shift-drag in Finder; Command-drag for PDF tools. Built locally on Apple silicon.</p>
+        <pre><code id="platform-command">./scripts/package.sh
 open dist/OpenLorikeet.app</code></pre>
-        <p>Optional engines</p>
-        <ul>
-          <li><a href="https://www.libreoffice.org/download/download-libreoffice/">LibreOffice</a> for Word layout fidelity and ODT export</li>
-          <li><a href="https://pandoc.org/installing.html">Pandoc</a> for Markdown and LaTeX export</li>
-          <li><a href="https://tectonic-typesetting.github.io/">Tectonic</a> for cached offline TeX compilation</li>
-        </ul>
+        <a class="button primary" id="platform-link" href="https://github.com/PushkarShah0603/OpenLorikeet/releases">Check releases ↗</a>
+        <a class="build-link" href="https://github.com/PushkarShah0603/OpenLorikeet/blob/main/docs/CROSS_PLATFORM.md">Setup &amp; build instructions →</a>
       </div>
     </section>
+    <section class="shell last-call"><div class="small-bird" aria-hidden="true"></div><p>A lighter workflow.<br><span>A brighter desktop.</span></p><a class="button secondary" href="https://github.com/PushkarShah0603/OpenLorikeet">Explore the source ↗</a></section>
   </main>
   <footer>
     <div class="shell footer">
