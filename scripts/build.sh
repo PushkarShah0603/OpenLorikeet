@@ -27,6 +27,7 @@ trap cleanup EXIT
 
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$bin_dir/OpenLorikeet" "$app/Contents/MacOS/OpenLorikeet"
+cp -R "$bin_dir/OpenLorikeet_OpenLorikeetApp.bundle" "$app/Contents/Resources/"
 cp Resources/Info.plist "$app/Contents/Info.plist"
 swift -module-cache-path "$CLANG_MODULE_CACHE_PATH" scripts/make-icon.swift "$app/Contents/Resources" docs/assets/lorikeet.png
 plutil -lint "$app/Contents/Info.plist"

@@ -4,7 +4,7 @@ The app builds for macOS 15 or newer. The Apple silicon ZIP passed archive valid
 
 | Area | Verified in automated checks | Pending |
 |---|---|---|
-| Gesture and feedback | Modifier and drag state transitions, radial hit testing, display bounds, exact-once selection, batch state and cancellation | Live Finder Shift and Command drag, menu-bar file picker, SceneKit appearance, notch placement, and login item behavior |
+| Gesture and feedback | Modifier and drag state transitions, radial hit testing, display bounds, exact-once selection, batch state and cancellation; transparent cartoon atlas and offline rendering of ready, working, happy, and failed poses | Live Finder Shift and Command drag, menu-bar file picker, live mascot animation, notch placement, and login item behavior |
 | Conversion workers | Bounded concurrency, cancellation, timeouts, duplicate submissions, validation, and exclusive publication of files and folders | Running the complete flow from Finder |
 | DOCX | Native PDF with tables, page breaks, repeated pictures, and compatibility textboxes. A supplied lab manual exports all 58 picture placements within page bounds. TXT and escaped HTML, Unicode and corrupt input | Exact Word pagination, floating drawing layout, and LibreOffice PDF and ODT integration |
 | Images | PNG to JPG, PDF, and embedded Word image. JPEG orientation. PNG lossless compression, 500 KB target, and resize | HEIC encoder verification in a graphical session. The encoder failed its probe here, so HEIC output is hidden |

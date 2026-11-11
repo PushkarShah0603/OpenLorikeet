@@ -57,7 +57,16 @@ h3 { letter-spacing: -.027em; }
 kbd { background: #314c3b; border: 1px solid #54705e; border-radius: 6px; font-size: 11px; padding: 4px 6px; }
 .demo-stage { position: relative; min-height: 326px; padding: 19px 18px 22px; background: radial-gradient(ellipse at 75% 65%, #2f5137 0%, transparent 68%), #14291f; }
 .demo-feedback { display: flex; width: min(290px, 100%); margin: 0 auto; align-items: center; gap: 11px; background: #101f18; border: 1px solid #3d5544; border-radius: 14px; padding: 8px 12px; }
-.demo-feedback img { border-radius: 9px; flex: none; }
+.mascot { width: 68px; height: 68px; flex: none; background: url("lorikeet-atlas.png") 0 0 / 400% 200% no-repeat; }
+.demo-feedback:hover .mascot { background-position: 66.6667% 0; }
+.is-playing .mascot { background-position: 100% 0; }
+.is-done .demo-feedback .mascot { background-position: 66.6667% 100%; animation: bird-celebrate 1.4s steps(1) both, bird-hop .6s ease 2; }
+@keyframes bird-celebrate {
+  0%, 40%, 80% { background-position: 66.6667% 100%; }
+  10%, 30%, 50%, 70% { background-position: 33.3333% 100%; }
+  20%, 60% { background-position: 0 100%; }
+  100% { background-position: 66.6667% 100%; }
+}
 .demo-feedback strong, .demo-feedback span { display: block; }
 .demo-feedback strong { font-size: 13px; }
 .demo-feedback div span { color: #c0cfbf; font-size: 11px; margin-top: 3px; }
@@ -66,7 +75,6 @@ kbd { background: #314c3b; border: 1px solid #54705e; border-radius: 6px; font-s
 .drag-ghost { display: none; position: absolute; z-index: 2; top: 55%; left: 0; pointer-events: none; padding: 7px 8px; border-radius: 6px; color: #173829; background: #f4faec; box-shadow: 0 3px 14px #0b1b12a0; font-size: 10px; font-weight: 800; }
 .is-playing .drag-ghost { display: block; animation: drag-file .95s ease-in-out both; }
 .is-playing kbd { background: var(--accent); color: var(--ink); }
-.is-done .demo-feedback img { animation: bird-hop .48s ease both; }
 @keyframes drag-file { 0% { left: 2%; opacity: 0; rotate: -10deg; } 16% { opacity: 1; } 90% { opacity: 1; } 100% { left: calc(100% - 38px); opacity: 0; rotate: 6deg; } }
 @keyframes bird-hop { 45% { transform: translateY(-7px) rotate(-8deg) scale(1.08); } }
 .file-token { display: grid; justify-items: center; gap: 8px; color: #dbe8d9; font-size: 11px; }
@@ -159,7 +167,7 @@ footer { background: var(--white); border-top: 1px solid var(--line); }
 }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  .hero-copy, .demo, .demo.is-done .celebration i, .is-done .demo-feedback img { animation: none; }
+  .hero-copy, .demo, .demo.is-done .celebration i, .is-done .demo-feedback .mascot { animation: none; }
   .is-playing .drag-ghost { display: none; }
   .wedge { transition: none; }
 }

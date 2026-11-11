@@ -10,7 +10,7 @@ let package = Package(
     ],
     targets: [
         .target(name: "ConversionCore"),
-        .executableTarget(name: "OpenLorikeetApp", dependencies: ["ConversionCore"]),
+        .executableTarget(name: "OpenLorikeetApp", dependencies: ["ConversionCore"], resources: [.copy("Assets")]),
         .executableTarget(name: "CoreChecks", dependencies: ["ConversionCore"], path: "Tests/CoreChecks"),
     ]
 )

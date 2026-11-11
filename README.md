@@ -12,7 +12,7 @@ macOS 15+ · Native AppKit · Local conversion
 
 </div>
 
-OpenLorikeet is a menu bar utility for converting documents, images, and spreadsheets. Start dragging a file in Finder, hold **Shift**, and drop it on an output format. The animated 3D lorikeet follows the selection and celebrates once a validated copy is saved beside the original.
+OpenLorikeet is a menu bar utility for converting documents, images, and spreadsheets. Start dragging a file in Finder, hold **Shift**, and drop it on an output format. The animated cartoon lorikeet follows the selection and celebrates once a validated copy is saved beside the original.
 
 ## How it works
 
