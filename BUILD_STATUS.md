@@ -22,3 +22,7 @@ The graphical smoke test aborts during macOS application registration in this en
 The regression suite covers deadlines during output validation, submissions arriving after queue shutdown, late drag data, volume filename limits, rotated PDF crop geometry, and Excel escape sequences. PNG optimization processes decoded data in blocks and validates chunk checksums. The build script stages and signs a fresh app before replacing the previous bundle.
 
 The GitHub Pages site passes static link, asset, and interactive walkthrough checks, including reduced-motion timing. The local page opened in Zen. The app smoke test still aborts before reporting launch success in this environment.
+
+## Windows and Linux expansion
+
+`desktop/` contains the Qt tray utility, radial drop wheel, cartoon atlas animation, background workers, and a portable conversion core. Native Windows and Linux builds are configured in `.github/workflows/desktop.yml`. Their builds and graphical acceptance are pending. The local package index could not resolve, so Qt, python-docx, openpyxl and ReportLab could not be installed here. Available local Python checks verify PDF image export/merge/split/order/metadata, route gating, and collision-safe publication; Word pictures and spreadsheet checks await installed dependencies. macOS remains the native Swift build. Feature and interaction differences are listed in [CROSS_PLATFORM.md](docs/CROSS_PLATFORM.md).

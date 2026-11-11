@@ -4,15 +4,19 @@
 
 # OpenLorikeet
 
-**Convert files from Finder with Shift-drag.**
+**Local file conversion with an animated desktop companion.**
 
-macOS 15+ · Native AppKit · Local conversion
+macOS · Windows · Linux · Local conversion
 
 [Format guide](#formats-and-actions) · [Build from source](#build-from-source) · [GitHub Releases](https://github.com/PushkarShah0603/OpenLorikeet/releases)
 
 </div>
 
 OpenLorikeet is a menu bar utility for converting documents, images, and spreadsheets. Start dragging a file in Finder, hold **Shift**, and drop it on an output format. The animated cartoon lorikeet follows the selection and celebrates once a validated copy is saved beside the original.
+
+## Windows and Linux
+
+The portable implementation in `desktop/` uses Qt for the same tray utility, radial wheel, and animated mascot. Windows and Linux build jobs are provided in GitHub Actions; native executables and live drag behavior still need verification on those systems. See the [platform guide](docs/CROSS_PLATFORM.md) for installation, feature coverage, and release steps.
 
 ## How it works
 

@@ -1,0 +1,1 @@
+"""OpenLorikeet portable desktop implementation."""

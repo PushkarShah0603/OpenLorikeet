@@ -3,7 +3,7 @@
 Status: implementation spans Phases 01–17. [Verification status](BUILD_STATUS.md) records open graphical, engine, and distribution checks. Complete each phase’s checks before marking it done.
 
 ## Product agreement
-- Local macOS background utility; no dashboard or main application window.
+- Background menu-bar/tray utility; no dashboard or main application window. The initial implementation is native macOS; the user-authorized Windows/Linux expansion lives in `desktop/` with the same wheel and mascot. See docs/CROSS_PLATFORM.md for availability and gesture differences.
 - Drag files on the Desktop or in Finder, hold **Shift**, hover a radial format segment, and release to convert.
 - Match the recorded experience: contextual wheel, hovered format in its center, compact notch feedback, and **Open / Show in Finder** on completion. Provide a top-edge fallback on displays without a notch.
 - Include an animated lorikeet companion that watches the interaction and reacts to conversion state; celebrate verified success with a short falling-feather effect.
